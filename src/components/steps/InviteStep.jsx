@@ -16,8 +16,24 @@ export default function InviteStep({ event, onFinish, onBack }) {
 
   const emailList = emails.split(/[\s,;]+/).filter(e => e.includes('@'))
 
-  const dateCount   = event.selectedDates?.length || 0
-  const slotCount   = Object.values(event.timeSlots || {}).reduce((a, v) => a + v.length, 0)
+  const dateCount = event.selectedDates?.length || 0
+
+  // Count contiguous time ranges across all selected dates
+  const countFrames = (slotsByDate) => {
+    let total = 0
+    Object.values(slotsByDate || {}).forEach(slots => {
+      if (!slots?.length) return
+      let frames = 1
+      for (let i = 1; i < slots.length; i++) {
+        const [ph, pm] = slots[i-1].split(':').map(Number)
+        const [ch, cm] = slots[i].split(':').map(Number)
+        if ((ch * 60 + cm) - (ph * 60 + pm) > 15) frames++
+      }
+      total += frames
+    })
+    return total
+  }
+  const frameCount = countFrames(event.timeSlots)
 
   return (
     <div className="w-full max-w-lg step-enter">
@@ -40,7 +56,7 @@ export default function InviteStep({ event, onFinish, onBack }) {
           </span>
           <span className="flex items-center gap-1.5 text-sm text-slate-500">
             <span className="w-5 h-5 rounded-full bg-gather-200 flex items-center justify-center text-gather-700 text-xs">⏰</span>
-            {slotCount} time slots
+            {frameCount} time frame{frameCount !== 1 ? 's' : ''}
           </span>
           <span className="flex items-center gap-1.5 text-sm text-slate-500">
             <span className="w-5 h-5 rounded-full bg-gather-200 flex items-center justify-center text-gather-700 text-xs">

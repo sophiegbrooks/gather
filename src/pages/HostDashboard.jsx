@@ -275,7 +275,20 @@ export default function HostDashboard() {
             ) : (
               <div className="space-y-3">
                 {participants.map((p, i) => {
-                  const slotCount = Object.values(p.availability || {}).reduce((a, v) => a + v.length, 0)
+                  const slotCount = (() => {
+                    let total = 0
+                    Object.values(p.availability || {}).forEach(slots => {
+                      if (!slots?.length) return
+                      let frames = 1
+                      for (let i = 1; i < slots.length; i++) {
+                        const [ph, pm] = slots[i-1].split(':').map(Number)
+                        const [ch, cm] = slots[i].split(':').map(Number)
+                        if ((ch * 60 + cm) - (ph * 60 + pm) > 15) frames++
+                      }
+                      total += frames
+                    })
+                    return total
+                  })()
                   const colors = ['#4ade80','#60a5fa','#f472b6','#fb923c','#a78bfa','#34d399']
                   return (
                     <div key={p.id || i} className="flex items-center gap-3">
@@ -287,7 +300,7 @@ export default function HostDashboard() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-ink text-sm">{p.name}</div>
-                        <div className="text-xs text-slate-400">{slotCount} slots marked</div>
+                        <div className="text-xs text-slate-400">{slotCount} time frame{slotCount !== 1 ? 's' : ''} marked</div>
                       </div>
                       <span className="w-2 h-2 rounded-full bg-green-400" />
                     </div>
