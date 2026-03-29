@@ -156,7 +156,7 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
         <div>
           <h3 className="font-bold text-ink text-base leading-tight">{label}</h3>
           <p className="text-xs text-slate-400 mt-0.5">
-            {durationLabel ? `${pendingSlots.size} slots · ${durationLabel}` : 'Drag to select your availability'}
+            {ranges.length > 0 ? `${ranges.length} time frame${ranges.length !== 1 ? 's' : ''} selected` : 'Drag to select your availability'}
           </p>
         </div>
         <button
@@ -290,7 +290,7 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
           onClick={saveAndClose}
           className="w-full py-3 bg-gather-600 text-white font-semibold rounded-xl hover:bg-gather-700 transition-all shadow-md shadow-gather-100 text-sm"
         >
-          {durationLabel ? `Save ${durationLabel} for this day ✓` : 'Save (no times) ✓'}
+          {ranges.length > 0 ? `Save ${ranges.length} time frame${ranges.length !== 1 ? 's' : ''} for this day ✓` : 'Save (no times) ✓'}
         </button>
       </div>
     </div>
