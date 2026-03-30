@@ -27,15 +27,19 @@ export default function AuthStep({ user, onChange, onNext, onBack }) {
     const { data, error: authError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { data: { full_name: name.trim() } },
+      options: {
+        data: { full_name: name.trim() },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     })
 
     setLoading(false)
     if (authError) {
       setError(authError.message)
-    } else if (data?.user) {
-      onChange({ name: name.trim(), email: email.trim(), isGuest: false, id: data.user.id })
-      onNext()
+    } else {
+      // Show confirm-email screen — user needs to click link in email
+      onChange({ name: name.trim(), email: email.trim(), isGuest: false, id: data?.user?.id })
+      setSuccess('confirm')
     }
   }
 
@@ -59,13 +63,36 @@ export default function AuthStep({ user, onChange, onNext, onBack }) {
     } else if (data?.user) {
       const displayName = name.trim() || data.user.user_metadata?.full_name || email.split('@')[0]
       onChange({ name: displayName, email: email.trim(), isGuest: false, id: data.user.id })
-      onNext()
+      // Redirect to profile dashboard
+      window.location.href = '/profile'
     }
   }
 
   const isGuestValid  = name.trim().length >= 1
   const isSignUpValid = name.trim().length >= 1 && email.includes('@') && password.length >= 6
   const isLoginValid  = email.includes('@') && password.length >= 6
+
+  // ── Confirm email screen ────────────────────────────────────────────────
+  if (success === 'confirm') {
+    return (
+      <div className="w-full max-w-lg step-enter flex flex-col items-center text-center">
+        <div className="w-16 h-16 bg-gather-100 rounded-2xl flex items-center justify-center text-3xl mb-5">📬</div>
+        <p className="text-gather-600 text-sm font-semibold uppercase tracking-widest mb-3">5 → Almost there</p>
+        <h2 className="text-4xl font-bold text-ink mb-3 leading-tight">Check your inbox</h2>
+        <p className="text-slate-400 mb-1">We sent a confirmation link to</p>
+        <p className="font-bold text-gather-600 text-lg mb-5">{email}</p>
+        <p className="text-sm text-slate-400 mb-8 max-w-sm">
+          Click the link in your email to confirm your account — it'll sign you in and take you straight to your Gather profile.
+        </p>
+        <button
+          onClick={() => setSuccess(null)}
+          className="text-sm text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          ← Use a different email
+        </button>
+      </div>
+    )
+  }
 
   const Spinner = () => (
     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">

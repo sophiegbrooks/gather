@@ -24,6 +24,9 @@ export function EventProvider({ children }) {
     const id = evt.id || `gather_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const final = { ...evt, id, createdAt: evt.createdAt || new Date().toISOString() }
 
+    // Attach logged-in user's ID if available
+    const { data: { user } } = await supabase.auth.getUser()
+
     const { error } = await supabase.from('events').upsert({
       id:             final.id,
       name:           final.name,
@@ -34,6 +37,7 @@ export function EventProvider({ children }) {
       user_info:      final.user,
       invite_emails:  final.inviteEmails,
       created_at:     final.createdAt,
+      user_id:        user?.id || null,
     })
 
     if (error) {
