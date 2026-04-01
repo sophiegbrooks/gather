@@ -23,7 +23,9 @@ function parseKey(key) {
   return new Date(y, m - 1, d)
 }
 
-function TimePanel({ date, slots, onChange, onClose }) {
+function TimePanel({ date, slots, hostSlots, onChange, onClose }) {
+  const AVAILABLE = hostSlots.length > 0 ? hostSlots : ALL_SLOTS
+
   const [dragging, setDragging]   = useState(false)
   const [dragMode, setDragMode]   = useState('add')
   const [dragStart, setDragStart] = useState(null)
@@ -34,11 +36,11 @@ function TimePanel({ date, slots, onChange, onClose }) {
 
   const getRange = (a, b) => {
     const [lo, hi] = [Math.min(a, b), Math.max(a, b)]
-    return ALL_SLOTS.slice(lo, hi + 1)
+    return AVAILABLE.slice(lo, hi + 1)
   }
 
   const handleMouseDown = (idx) => {
-    const slot = ALL_SLOTS[idx]
+    const slot = AVAILABLE[idx]
     const mode = pending.has(slot) ? 'remove' : 'add'
     setDragMode(mode)
     setDragStart(idx)
@@ -71,11 +73,11 @@ function TimePanel({ date, slots, onChange, onClose }) {
     onClose()
   }
 
-  const amSlots = ALL_SLOTS.filter(s => parseInt(s) < 12)
-  const pmSlots = ALL_SLOTS.filter(s => parseInt(s) >= 12)
+  const amSlots = AVAILABLE.filter(s => parseInt(s) < 12)
+  const pmSlots = AVAILABLE.filter(s => parseInt(s) >= 12)
 
   const SlotRow = ({ slot }) => {
-    const idx      = ALL_SLOTS.indexOf(slot)
+    const idx      = AVAILABLE.indexOf(slot)
     const selected = pending.has(slot)
     const isHour   = slot.endsWith(':00')
     return (
@@ -105,10 +107,10 @@ function TimePanel({ date, slots, onChange, onClose }) {
       </div>
       <div className="flex flex-wrap gap-2 mb-4">
         {[
-          { label: 'Morning', slots: ALL_SLOTS.filter(s => { const h = parseInt(s); return h >= 8 && h < 12 }) },
-          { label: 'Afternoon', slots: ALL_SLOTS.filter(s => { const h = parseInt(s); return h >= 12 && h < 17 }) },
-          { label: 'All day', slots: ALL_SLOTS.filter(s => { const h = parseInt(s); return h >= 9 && h < 17 }) },
-        ].map(p => (
+          { label: 'Morning', slots: AVAILABLE.filter(s => { const h = parseInt(s); return h >= 8 && h < 12 }) },
+          { label: 'Afternoon', slots: AVAILABLE.filter(s => { const h = parseInt(s); return h >= 12 && h < 17 }) },
+          { label: 'All day', slots: AVAILABLE.filter(s => { const h = parseInt(s); return h >= 9 && h < 17 }) },
+        ].filter(p => p.slots.length > 0).map(p => (
           <button key={p.label} onClick={() => setPending(new Set(p.slots))}
             className="px-3 py-1.5 bg-slate-100 hover:bg-gather-100 hover:text-gather-700 text-slate-500 text-xs font-medium rounded-full transition-colors">
             {p.label}
@@ -120,10 +122,18 @@ function TimePanel({ date, slots, onChange, onClose }) {
         </button>
       </div>
       <div className="flex-1 overflow-y-auto pr-1">
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-1 mb-1">Morning</div>
-        {amSlots.map(slot => <SlotRow key={slot} slot={slot} />)}
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2 mt-1 mb-1">Afternoon & Evening</div>
-        {pmSlots.map(slot => <SlotRow key={slot} slot={slot} />)}
+        {amSlots.length > 0 && (
+          <>
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-1 mb-1">Morning</div>
+            {amSlots.map(slot => <SlotRow key={slot} slot={slot} />)}
+          </>
+        )}
+        {pmSlots.length > 0 && (
+          <>
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2 mt-1 mb-1">Afternoon & Evening</div>
+            {pmSlots.map(slot => <SlotRow key={slot} slot={slot} />)}
+          </>
+        )}
       </div>
       <button onClick={confirm}
         className="mt-4 w-full py-3 bg-gather-600 text-white font-semibold rounded-xl hover:bg-gather-700 transition-all shadow-md shadow-gather-100">
@@ -243,6 +253,11 @@ export default function ParticipantView() {
                 <div>
                   <h2 className="text-2xl font-bold text-ink">Hi {name}! When are you free?</h2>
                   <p className="text-slate-400 text-sm mt-1">Click any proposed date to mark your availability.</p>
+                  {event.timezone && (
+                    <p className="text-xs text-slate-400 mt-1">
+                      Times shown in <span className="font-medium">{event.timezone}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -301,6 +316,7 @@ export default function ParticipantView() {
                 <TimePanel
                   date={activeDate}
                   slots={availability[activeDate] || []}
+                  hostSlots={event.timeSlots?.[activeDate] || []}
                   onChange={handleTimeChange}
                   onClose={() => setActiveDate(null)}
                 />

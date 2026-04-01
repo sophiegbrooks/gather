@@ -78,11 +78,25 @@ function formatRange({ start, end }) {
 // ── Time panel for a single day ──────────────────────────────────────────────
 const SLOT_H = 14   // px per 15-min row
 
+// Build a flat list of hour:minute options for the range picker dropdowns
+const TIME_OPTIONS = ALL_SLOTS.concat(['23:00']) // end time can be up to 11 PM
+
+function slotsInRange(start, end) {
+  // Returns all ALL_SLOTS entries from start up to (but not including) end
+  const startIdx = ALL_SLOTS.indexOf(start)
+  const endIdx   = ALL_SLOTS.indexOf(end)
+  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) return []
+  return ALL_SLOTS.slice(startIdx, endIdx)
+}
+
 function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay, onNextDay }) {
+  const [mode, setMode]                 = useState('drag')
   const [pendingSlots, setPendingSlots] = useState(new Set(slots))
   const [hoverIdx, setHoverIdx]         = useState(null)
   const [dragStart, setDragStart]       = useState(null)
   const [dragMode, setDragMode]         = useState('add')
+  const [rangeStart, setRangeStart]     = useState('09:00')
+  const [rangeEnd, setRangeEnd]         = useState('17:00')
   const dragging  = useRef(false)
   const scrollRef = useRef(null)
 
@@ -148,6 +162,16 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
     { label: 'Evening',      test: h => h >= 17 && h < 21 },
   ]
 
+  const addRange = () => {
+    const toAdd = slotsInRange(rangeStart, rangeEnd)
+    if (toAdd.length === 0) return
+    setPendingSlots(prev => {
+      const next = new Set(prev)
+      toAdd.forEach(s => next.add(s))
+      return next
+    })
+  }
+
   return (
     <div className="flex flex-col h-full select-none">
 
@@ -156,13 +180,26 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
         <div>
           <h3 className="font-bold text-ink text-base leading-tight">{label}</h3>
           <p className="text-xs text-slate-400 mt-0.5">
-            {ranges.length > 0 ? `${ranges.length} time frame${ranges.length !== 1 ? 's' : ''} selected` : 'Drag to select your availability'}
+            {ranges.length > 0 ? `${ranges.length} time frame${ranges.length !== 1 ? 's' : ''} selected` : 'Select your available times'}
           </p>
         </div>
         <button
           onClick={saveAndClose}
           className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 text-xs transition-colors shrink-0"
         >✕</button>
+      </div>
+
+      {/* ── Mode tabs ── */}
+      <div className="flex gap-1 mb-3 shrink-0 bg-slate-100 rounded-lg p-0.5">
+        {[{ id: 'drag', label: 'Drag' }, { id: 'range', label: 'Start / End' }].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setMode(t.id)}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
+              mode === t.id ? 'bg-white text-ink shadow-sm' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >{t.label}</button>
+        ))}
       </div>
 
       {/* ── Selected time-window chips ── */}
@@ -186,39 +223,84 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
         )}
       </div>
 
-      {/* ── Presets ── */}
-      <div className="flex gap-1.5 mb-3 flex-wrap shrink-0">
-        {PRESETS.map(p => {
-          const ps     = ALL_SLOTS.filter(s => p.test(parseInt(s)))
-          const active = ps.length > 0 && ps.every(s => pendingSlots.has(s))
-          return (
+      {mode === 'range' ? (
+        /* ── Range picker ── */
+        <div className="flex-1 flex flex-col gap-3">
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Start</label>
+              <select
+                value={rangeStart}
+                onChange={e => setRangeStart(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-ink bg-white focus:border-gather-400 outline-none"
+              >
+                {ALL_SLOTS.map(s => (
+                  <option key={s} value={s}>{formatSlot(s)}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">End</label>
+              <select
+                value={rangeEnd > rangeStart ? rangeEnd : ALL_SLOTS.find(s => s > rangeStart) || '23:00'}
+                onChange={e => setRangeEnd(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-ink bg-white focus:border-gather-400 outline-none"
+              >
+                {ALL_SLOTS.filter(s => s > rangeStart).concat(['23:00']).map(s => (
+                  <option key={s} value={s}>{s === '23:00' ? '11:00 PM' : formatSlot(s)}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <button
+            onClick={addRange}
+            disabled={rangeEnd <= rangeStart}
+            className="w-full py-2 bg-gather-100 text-gather-700 font-semibold rounded-lg text-sm hover:bg-gather-200 transition-colors disabled:opacity-40"
+          >
+            + Add this range
+          </button>
+          <button
+            onClick={() => setPendingSlots(new Set())}
+            className="w-full py-1.5 text-xs text-slate-400 hover:text-red-400 transition-colors"
+          >
+            Clear all
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* ── Presets ── */}
+          <div className="flex gap-1.5 mb-3 flex-wrap shrink-0">
+            {PRESETS.map(p => {
+              const ps     = ALL_SLOTS.filter(s => p.test(parseInt(s)))
+              const active = ps.length > 0 && ps.every(s => pendingSlots.has(s))
+              return (
+                <button
+                  key={p.label}
+                  onClick={() => setPendingSlots(prev => {
+                    const next = new Set(prev)
+                    active ? ps.forEach(s => next.delete(s)) : ps.forEach(s => next.add(s))
+                    return next
+                  })}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-all ${
+                    active
+                      ? 'bg-gather-500 text-white border-gather-500'
+                      : 'bg-white text-slate-500 border-slate-200 hover:border-gather-300 hover:text-gather-600'
+                  }`}
+                >{p.label}</button>
+              )
+            })}
             <button
-              key={p.label}
-              onClick={() => setPendingSlots(prev => {
-                const next = new Set(prev)
-                active ? ps.forEach(s => next.delete(s)) : ps.forEach(s => next.add(s))
-                return next
-              })}
-              className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-all ${
-                active
-                  ? 'bg-gather-500 text-white border-gather-500'
-                  : 'bg-white text-slate-500 border-slate-200 hover:border-gather-300 hover:text-gather-600'
-              }`}
-            >{p.label}</button>
-          )
-        })}
-        <button
-          onClick={() => setPendingSlots(new Set())}
-          className="px-2.5 py-1 text-xs font-medium rounded-full border border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-400 transition-all bg-white"
-        >Clear</button>
-      </div>
+              onClick={() => setPendingSlots(new Set())}
+              className="px-2.5 py-1 text-xs font-medium rounded-full border border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-400 transition-all bg-white"
+            >Clear</button>
+          </div>
 
-      {/* ── Vertical time grid ── */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto"
-        onMouseLeave={() => setHoverIdx(null)}
-      >
+          {/* ── Vertical time grid ── */}
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto"
+            onMouseLeave={() => setHoverIdx(null)}
+          >
         {ALL_SLOTS.map((slot, idx) => {
           const selected   = pendingSlots.has(slot)
           const isHov      = hoverIdx === idx && !dragging.current
@@ -264,7 +346,9 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
             </div>
           )
         })}
-      </div>
+          </div>
+        </>
+      )}
 
       {/* ── Footer: save + day navigation ── */}
       <div className="shrink-0 mt-3 space-y-2">

@@ -38,6 +38,7 @@ export function EventProvider({ children }) {
       invite_emails:  final.inviteEmails,
       created_at:     final.createdAt,
       user_id:        user?.id || null,
+      timezone:       final.timezone || null,
     })
 
     if (error) {
@@ -71,6 +72,7 @@ export function EventProvider({ children }) {
       user:          data.user_info,
       inviteEmails:  data.invite_emails  || [],
       createdAt:     data.created_at,
+      timezone:      data.timezone       || null,
       participants:  (data.participants || []).map(p => ({
         id:           p.id,
         name:         p.name,

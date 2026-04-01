@@ -135,7 +135,7 @@ export default function HostDashboard() {
                 copied ? 'bg-gather-500 text-white' : 'bg-gather-50 text-gather-700 hover:bg-gather-100'
               }`}
             >
-              {copied ? '✓ Link copied!' : '🔗 Share link'}
+              {copied ? '✓ Link copied!' : 'Share link'}
             </button>
             {authUser ? (
               <button
@@ -167,12 +167,11 @@ export default function HostDashboard() {
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-4">
             {[
-              { label: 'Participants', value: participants.length, icon: '👥' },
-              { label: 'Dates proposed', value: event.selectedDates?.length || 0, icon: '📅' },
-              { label: 'Response rate', value: participants.length > 0 ? '100%' : '—', icon: '📊' },
+              { label: 'Participants', value: participants.length },
+              { label: 'Dates proposed', value: event.selectedDates?.length || 0 },
+              { label: 'Response rate', value: participants.length > 0 ? '100%' : '—' },
             ].map(stat => (
               <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 p-5">
-                <span className="text-2xl mb-2 block">{stat.icon}</span>
                 <div className="text-3xl font-bold text-ink">{stat.value}</div>
                 <div className="text-sm text-slate-400 mt-1">{stat.label}</div>
               </div>
@@ -182,14 +181,13 @@ export default function HostDashboard() {
           {/* Best times */}
           <div className="bg-white rounded-2xl border border-slate-100 p-6">
             <h2 className="font-bold text-ink mb-4 flex items-center gap-2">
-              ✨ Best times
+              Best times
               {participants.length === 0 && (
                 <span className="text-xs text-slate-400 font-normal">Waiting for responses…</span>
               )}
             </h2>
             {bestSlots.length === 0 ? (
               <div className="py-8 text-center">
-                <div className="text-4xl mb-3">⏳</div>
                 <p className="text-slate-400">Share the link to start collecting availability.</p>
                 <div className="mt-4 flex items-center gap-2 bg-slate-50 rounded-xl px-4 py-3 max-w-sm mx-auto">
                   <span className="text-slate-400 text-sm font-mono truncate">{inviteLink}</span>
@@ -293,7 +291,6 @@ export default function HostDashboard() {
             </h2>
             {participants.length === 0 ? (
               <div className="py-6 text-center">
-                <div className="text-3xl mb-2">🌐</div>
                 <p className="text-slate-400 text-sm">No responses yet.<br />Share the link below.</p>
               </div>
             ) : (

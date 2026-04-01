@@ -23,6 +23,9 @@ export default function Create() {
 
   // Check if user is already logged in and pre-populate user data
   useEffect(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    updateEvent({ timezone: tz })
+
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) {
         const u = data.user
