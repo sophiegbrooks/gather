@@ -297,36 +297,59 @@ export default function HostDashboard() {
                 <p className="text-slate-400 text-sm">No responses yet.<br />Share the link below.</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {participants.map((p, i) => {
-                  const slotCount = (() => {
-                    let total = 0
-                    Object.values(p.availability || {}).forEach(slots => {
-                      if (!slots?.length) return
-                      let frames = 1
-                      for (let i = 1; i < slots.length; i++) {
-                        const [ph, pm] = slots[i-1].split(':').map(Number)
-                        const [ch, cm] = slots[i].split(':').map(Number)
-                        if ((ch * 60 + cm) - (ph * 60 + pm) > 15) frames++
-                      }
-                      total += frames
-                    })
-                    return total
-                  })()
                   const colors = ['#4ade80','#60a5fa','#f472b6','#fb923c','#a78bfa','#34d399']
+                  // Build time ranges per date
+                  const dateEntries = event.selectedDates?.filter(d =>
+                    (p.availability?.[d] || []).length > 0
+                  ) || []
                   return (
-                    <div key={p.id || i} className="flex items-center gap-3">
-                      <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
-                        style={{ background: colors[i % colors.length] }}
-                      >
-                        {(p.name || '?')[0].toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
+                    <div key={p.id || i} className="border border-slate-100 rounded-xl p-3">
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+                          style={{ background: colors[i % colors.length] }}
+                        >
+                          {(p.name || '?')[0].toUpperCase()}
+                        </div>
                         <div className="font-semibold text-ink text-sm">{p.name}</div>
-                        <div className="text-xs text-slate-400">{slotCount} time frame{slotCount !== 1 ? 's' : ''} marked</div>
+                        <span className="w-2 h-2 rounded-full bg-green-400 ml-auto shrink-0" />
                       </div>
-                      <span className="w-2 h-2 rounded-full bg-green-400" />
+                      {dateEntries.length === 0 ? (
+                        <p className="text-xs text-slate-400 pl-1">No times selected</p>
+                      ) : (
+                        <div className="space-y-1.5 pl-1">
+                          {dateEntries.map(date => {
+                            const slots = [...(p.availability[date] || [])].sort()
+                            // Group into contiguous ranges
+                            const ranges = []
+                            let rangeStart = slots[0]
+                            let prev = slots[0]
+                            for (let j = 1; j < slots.length; j++) {
+                              const [ph, pm] = prev.split(':').map(Number)
+                              const [ch, cm] = slots[j].split(':').map(Number)
+                              if ((ch * 60 + cm) - (ph * 60 + pm) > 30) {
+                                ranges.push({ from: rangeStart, to: prev })
+                                rangeStart = slots[j]
+                              }
+                              prev = slots[j]
+                            }
+                            ranges.push({ from: rangeStart, to: prev })
+                            const dateLabel = parseKey(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                            return (
+                              <div key={date}>
+                                <span className="text-xs font-semibold text-slate-500">{dateLabel}: </span>
+                                <span className="text-xs text-slate-400">
+                                  {ranges.map(r =>
+                                    r.from === r.to ? formatSlot(r.from) : `${formatSlot(r.from)}–${formatSlot(r.to)}`
+                                  ).join(', ')}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
