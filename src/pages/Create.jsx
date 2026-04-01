@@ -17,6 +17,7 @@ export default function Create() {
   const [currentStep, setCurrentStep] = useState(0)
   const [animating, setAnimating] = useState(false)
   const [loggedInUser, setLoggedInUser] = useState(null)
+  const [savedEventId, setSavedEventId] = useState(null)
   const { event, updateEvent, saveEventToStorage } = useEvent()
   const navigate = useNavigate()
 
@@ -35,13 +36,15 @@ export default function Create() {
   const goNext = () => {
     if (animating) return
     setAnimating(true)
-    setTimeout(() => {
-      setCurrentStep(s => {
-        const next = s + 1
-        // Skip auth step if already logged in
-        if (next === AUTH_STEP && loggedInUser) return next + 1
-        return next
-      })
+    setTimeout(async () => {
+      const next = currentStep + 1
+      const targetStep = (next === AUTH_STEP && loggedInUser) ? next + 1 : next
+      // Save event to DB when reaching invite step so the link is real
+      if (targetStep === 5 && !savedEventId) {
+        const id = await saveEventToStorage(event)
+        setSavedEventId(id)
+      }
+      setCurrentStep(targetStep)
       setAnimating(false)
     }, 200)
   }
@@ -61,7 +64,8 @@ export default function Create() {
   }
 
   const handleFinish = async () => {
-    const id = await saveEventToStorage(event)
+    // Event was already saved when entering InviteStep; just navigate
+    const id = savedEventId || await saveEventToStorage(event)
     navigate(`/event/${id}/dashboard`)
   }
 
@@ -158,6 +162,7 @@ export default function Create() {
         {currentStep === 5 && (
           <InviteStep
             event={event}
+            eventId={savedEventId}
             onFinish={handleFinish}
             onBack={goBack}
           />

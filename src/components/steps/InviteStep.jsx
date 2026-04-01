@@ -1,14 +1,15 @@
 import { useState } from 'react'
 
-export default function InviteStep({ event, onFinish, onBack }) {
+export default function InviteStep({ event, eventId, onFinish, onBack }) {
   const [emails, setEmails] = useState('')
   const [copied, setCopied] = useState(false)
 
-  // Generate a preview link (real ID will be assigned on finish)
-  const previewId = `gather_preview_${Date.now()}`
-  const link = `${window.location.origin}/event/${previewId}`
+  const link = eventId
+    ? `${window.location.origin}/event/${eventId}`
+    : null
 
   const handleCopy = () => {
+    if (!link) return
     navigator.clipboard.writeText(link)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
@@ -70,21 +71,28 @@ export default function InviteStep({ event, onFinish, onBack }) {
       {/* Share link */}
       <div className="mb-6">
         <label className="block text-sm font-semibold text-slate-600 mb-2">Share link</label>
-        <div className="flex gap-2">
-          <div className="flex-1 px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-slate-500 text-sm font-mono truncate">
-            {link}
+        {link ? (
+          <div className="flex gap-2">
+            <div className="flex-1 px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-slate-500 text-sm font-mono truncate">
+              {link}
+            </div>
+            <button
+              onClick={handleCopy}
+              className={`px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                copied
+                  ? 'bg-gather-500 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-gather-100 hover:text-gather-700'
+              }`}
+            >
+              {copied ? '✓ Copied!' : 'Copy'}
+            </button>
           </div>
-          <button
-            onClick={handleCopy}
-            className={`px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-              copied
-                ? 'bg-gather-500 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-gather-100 hover:text-gather-700'
-            }`}
-          >
-            {copied ? '✓ Copied!' : 'Copy'}
-          </button>
-        </div>
+        ) : (
+          <div className="flex items-center gap-3 px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-slate-400 text-sm">
+            <div className="w-4 h-4 border-2 border-slate-300 border-t-gather-500 rounded-full animate-spin shrink-0" />
+            Saving your event…
+          </div>
+        )}
       </div>
 
       {/* Email invites */}
