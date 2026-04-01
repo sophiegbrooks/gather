@@ -109,7 +109,7 @@ export default function AuthStep({ user, onChange, onNext, onBack }) {
       <p className="text-slate-400 mb-8">Continue as a guest or create a free account.</p>
 
       {/* Mode tabs */}
-      <div className="flex bg-slate-100 rounded-2xl p-1 mb-8 gap-1">
+      <div className="flex gap-2 mb-8">
         {[
           { key: 'guest',  label: 'Guest'   },
           { key: 'signup', label: 'Sign Up' },
@@ -118,8 +118,14 @@ export default function AuthStep({ user, onChange, onNext, onBack }) {
           <button
             key={tab.key}
             onClick={() => switchMode(tab.key)}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              mode === tab.key ? 'bg-white shadow-sm text-ink' : 'text-slate-400 hover:text-slate-600'
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all border-2 ${
+              mode === tab.key
+                ? tab.key === 'signup'
+                  ? 'bg-gather-600 border-gather-600 text-white shadow-md shadow-gather-100'
+                  : tab.key === 'login'
+                  ? 'bg-ink border-ink text-white'
+                  : 'bg-white border-slate-200 text-ink shadow-sm'
+                : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600'
             }`}
           >
             {tab.label}
@@ -159,6 +165,7 @@ export default function AuthStep({ user, onChange, onNext, onBack }) {
       {/* ── Sign Up ── */}
       {mode === 'signup' && (
         <div className="space-y-4 animate-fade-in">
+          <p className="text-sm text-slate-400 -mt-4 mb-2">Create a new account to save your events.</p>
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1.5">Full name *</label>
             <input
@@ -196,6 +203,7 @@ export default function AuthStep({ user, onChange, onNext, onBack }) {
       {/* ── Log In ── */}
       {mode === 'login' && (
         <div className="space-y-4 animate-fade-in">
+          <p className="text-sm text-slate-400 -mt-4 mb-2">Welcome back — sign in to your existing account.</p>
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1.5">Your name</label>
             <input
