@@ -60,8 +60,8 @@ export default function Create() {
     }, 200)
   }
 
-  const handleFinish = () => {
-    const id = saveEventToStorage(event)
+  const handleFinish = async () => {
+    const id = await saveEventToStorage(event)
     navigate(`/event/${id}/dashboard`)
   }
 
