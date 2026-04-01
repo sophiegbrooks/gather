@@ -7,6 +7,7 @@ import Create from './pages/Create'
 import HostDashboard from './pages/HostDashboard'
 import ParticipantView from './pages/ParticipantView'
 import Profile from './pages/Profile'
+import Login from './pages/Login'
 
 // Handles the redirect after email confirmation click
 function AuthCallback() {
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/"                       element={<Landing />} />
           <Route path="/create"                 element={<Create />} />
           <Route path="/profile"                element={<Profile />} />
+          <Route path="/login"                  element={<Login />} />
           <Route path="/auth/callback"          element={<AuthCallback />} />
           <Route path="/event/:id/dashboard"    element={<HostDashboard />} />
           <Route path="/event/:id"              element={<ParticipantView />} />

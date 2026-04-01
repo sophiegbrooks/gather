@@ -34,7 +34,7 @@ export default function Landing() {
             </button>
           ) : (
             <button
-              onClick={() => navigate('/create')}
+              onClick={() => navigate('/login')}
               className="text-sm font-semibold px-4 py-2 border-2 border-slate-200 text-ink rounded-xl hover:border-gather-400 hover:text-gather-700 transition-all"
             >
               Log in

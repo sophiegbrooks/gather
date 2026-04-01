@@ -73,7 +73,10 @@ export default function Profile() {
               <div className="w-8 h-8 rounded-full bg-gather-500 flex items-center justify-center text-white text-sm font-bold">
                 {displayName[0].toUpperCase()}
               </div>
-              <span className="text-sm font-medium text-ink hidden sm:block">{displayName}</span>
+              <div className="hidden sm:block">
+                <div className="text-sm font-medium text-ink leading-tight">{displayName}</div>
+                <div className="text-xs text-slate-400 leading-tight">{user?.email}</div>
+              </div>
             </div>
             <button
               onClick={handleSignOut}
