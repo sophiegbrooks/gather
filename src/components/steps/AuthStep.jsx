@@ -37,9 +37,8 @@ export default function AuthStep({ user, onChange, onNext, onBack }) {
     if (authError) {
       setError(authError.message)
     } else {
-      // Show confirm-email screen — user needs to click link in email
       onChange({ name: name.trim(), email: email.trim(), isGuest: false, id: data?.user?.id })
-      setSuccess('confirm')
+      onNext()
     }
   }
 
