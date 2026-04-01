@@ -88,9 +88,20 @@ export default function Create() {
           ))}
         </div>
 
-        <span className="text-sm text-slate-400 w-24 text-right">
-          {currentStep + 1} of {STEPS.length}
-        </span>
+        {loggedInUser ? (
+          <button
+            onClick={() => navigate('/profile')}
+            className="flex items-center gap-2 group"
+          >
+            <div className="w-8 h-8 rounded-full bg-gather-500 flex items-center justify-center text-white text-sm font-bold group-hover:bg-gather-600 transition-colors">
+              {(loggedInUser.user_metadata?.full_name || loggedInUser.email || '?')[0].toUpperCase()}
+            </div>
+          </button>
+        ) : (
+          <span className="text-sm text-slate-400 w-24 text-right">
+            {currentStep + 1} of {STEPS.length}
+          </span>
+        )}
       </header>
 
       {/* Progress bar */}
