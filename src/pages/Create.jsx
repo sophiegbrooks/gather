@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useEvent } from '../context/EventContext'
+import { supabase } from '../lib/supabase'
 import NameStep    from '../components/steps/NameStep'
 import TopicStep   from '../components/steps/TopicStep'
 import TypeStep    from '../components/steps/TypeStep'
@@ -10,18 +11,37 @@ import InviteStep  from '../components/steps/InviteStep'
 
 const STEPS = ['name', 'topic', 'type', 'calendar', 'auth', 'invite']
 const STEP_LABELS = ['Event', 'Topic', 'Format', 'Dates & Times', 'You', 'Invite']
+const AUTH_STEP = 4
 
 export default function Create() {
   const [currentStep, setCurrentStep] = useState(0)
   const [animating, setAnimating] = useState(false)
+  const [loggedInUser, setLoggedInUser] = useState(null)
   const { event, updateEvent, saveEventToStorage } = useEvent()
   const navigate = useNavigate()
+
+  // Check if user is already logged in and pre-populate user data
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) {
+        const u = data.user
+        const name = u.user_metadata?.full_name || u.email?.split('@')[0] || ''
+        setLoggedInUser(u)
+        updateEvent({ user: { name, email: u.email, isGuest: false, id: u.id } })
+      }
+    })
+  }, [])
 
   const goNext = () => {
     if (animating) return
     setAnimating(true)
     setTimeout(() => {
-      setCurrentStep(s => s + 1)
+      setCurrentStep(s => {
+        const next = s + 1
+        // Skip auth step if already logged in
+        if (next === AUTH_STEP && loggedInUser) return next + 1
+        return next
+      })
       setAnimating(false)
     }, 200)
   }
@@ -30,7 +50,12 @@ export default function Create() {
     if (animating || currentStep === 0) return
     setAnimating(true)
     setTimeout(() => {
-      setCurrentStep(s => s - 1)
+      setCurrentStep(s => {
+        const prev = s - 1
+        // Skip auth step going backwards if already logged in
+        if (prev === AUTH_STEP && loggedInUser) return prev - 1
+        return prev
+      })
       setAnimating(false)
     }, 200)
   }
