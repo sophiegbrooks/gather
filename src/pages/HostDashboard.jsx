@@ -149,7 +149,7 @@ export default function HostDashboard() {
               </button>
             ) : authUser === null && (
               <button
-                onClick={() => navigate('/login')}
+                onClick={() => navigate('/login?signup=1')}
                 className="px-4 py-2 border-2 border-gather-200 text-gather-700 text-sm font-semibold rounded-xl hover:bg-gather-50 transition-all"
               >
                 Save events — sign up
