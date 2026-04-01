@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEvent } from '../context/EventContext'
+import { supabase } from '../lib/supabase'
 
 const ALL_SLOTS = (() => {
   const slots = []
@@ -62,6 +63,7 @@ export default function HostDashboard() {
   const { event, loadEventFromStorage } = useEvent()
   const [copied, setCopied] = useState(false)
   const [activeDate, setActiveDate] = useState(null)
+  const [authUser, setAuthUser] = useState(undefined) // undefined = loading, null = guest
 
   // Poll for updates every 3s
   useEffect(() => {
@@ -69,6 +71,10 @@ export default function HostDashboard() {
     const interval = setInterval(() => loadEventFromStorage(id), 3000)
     return () => clearInterval(interval)
   }, [id])
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setAuthUser(data?.user ?? null))
+  }, [])
 
   const inviteLink = `${window.location.origin}/event/${id}`
 
@@ -131,6 +137,24 @@ export default function HostDashboard() {
             >
               {copied ? '✓ Link copied!' : '🔗 Share link'}
             </button>
+            {authUser ? (
+              <button
+                onClick={() => navigate('/profile')}
+                className="flex items-center gap-2 group"
+                title="Go to your profile"
+              >
+                <div className="w-8 h-8 rounded-full bg-gather-500 flex items-center justify-center text-white text-sm font-bold group-hover:bg-gather-600 transition-colors">
+                  {(authUser.user_metadata?.full_name || authUser.email || '?')[0].toUpperCase()}
+                </div>
+              </button>
+            ) : authUser === null && (
+              <button
+                onClick={() => navigate('/login')}
+                className="px-4 py-2 border-2 border-gather-200 text-gather-700 text-sm font-semibold rounded-xl hover:bg-gather-50 transition-all"
+              >
+                Save events — sign up
+              </button>
+            )}
           </div>
         </div>
       </header>
