@@ -1,7 +1,14 @@
 import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
 
 export default function Landing() {
   const navigate = useNavigate()
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data?.user ?? null))
+  }, [])
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -11,12 +18,29 @@ export default function Landing() {
           <span className="text-2xl font-bold text-gather-700 tracking-tight">gather</span>
           <span className="w-1.5 h-1.5 rounded-full bg-gather-500 mt-1" />
         </div>
-        <button
-          onClick={() => navigate('/create')}
-          className="text-sm font-medium text-gather-700 hover:text-gather-900 transition-colors"
-        >
-          Schedule a meeting
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/create')}
+            className="text-sm font-medium text-gather-700 hover:text-gather-900 transition-colors"
+          >
+            Schedule a meeting
+          </button>
+          {user ? (
+            <button
+              onClick={() => navigate('/profile')}
+              className="text-sm font-semibold px-4 py-2 bg-gather-600 text-white rounded-xl hover:bg-gather-700 transition-all"
+            >
+              My profile
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/create')}
+              className="text-sm font-semibold px-4 py-2 border-2 border-slate-200 text-ink rounded-xl hover:border-gather-400 hover:text-gather-700 transition-all"
+            >
+              Log in
+            </button>
+          )}
+        </div>
       </nav>
 
       {/* Hero */}
