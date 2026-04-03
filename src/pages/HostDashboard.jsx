@@ -43,6 +43,16 @@ function getBlocks(slots) {
   return blocks
 }
 
+// Returns a green color interpolated from near-white (pct=0) to deep green (pct=1)
+function heatColor(pct) {
+  if (pct <= 0) return '#f1f5f9' // slate-100 for zero
+  // Interpolate from light green (#bbf7d0, green-200) to deep green (#15803d, green-700)
+  const r = Math.round(187 + (21  - 187) * pct)
+  const g = Math.round(247 + (128 - 247) * pct)
+  const b = Math.round(208 + (61  - 208) * pct)
+  return `rgb(${r},${g},${b})`
+}
+
 function formatBlockRange(block) {
   const start = formatSlot(block[0])
   const end   = formatSlot(addFifteen(block[block.length - 1]))
@@ -173,13 +183,30 @@ export default function HostDashboard() {
             ))}
           </div>
 
-          {/* Availability columns */}
+          {/* Availability heatmap */}
           <div className="bg-white rounded-2xl border border-slate-100 p-6">
-            <h2 className="font-bold text-ink mb-1">Availability</h2>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-bold text-ink">Availability</h2>
+              {participants.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-400">0%</span>
+                  <div className="flex gap-px">
+                    {[0.15, 0.35, 0.55, 0.75, 1].map(v => (
+                      <div
+                        key={v}
+                        className="w-4 h-3 rounded-sm"
+                        style={{ background: heatColor(v) }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-slate-400">100%</span>
+                </div>
+              )}
+            </div>
             <p className="text-xs text-slate-400 mb-5">
               {participants.length === 0
                 ? 'Waiting for responses — share the invite link below.'
-                : `Showing who's free for each proposed time.`}
+                : `Darker = more people available. Hover a slot to see who's free.`}
             </p>
 
             {participants.length === 0 ? (
@@ -193,7 +220,7 @@ export default function HostDashboard() {
               </div>
             ) : (
               <div className="overflow-x-auto -mx-6 px-6 pb-2">
-                <div className="flex gap-4 min-w-max">
+                <div className="flex gap-3 min-w-max">
                   {(event.selectedDates || []).map(date => {
                     const hostSlots = [...(event.timeSlots?.[date] || [])].sort()
                     const blocks    = getBlocks(hostSlots)
@@ -202,82 +229,46 @@ export default function HostDashboard() {
                     const monthDay  = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
                     return (
-                      <div key={date} className="w-52 shrink-0">
+                      <div key={date} className="shrink-0">
                         {/* Date header */}
-                        <div className="text-center mb-3 pb-2 border-b border-slate-100">
-                          <div className="font-bold text-ink text-sm">{weekday}</div>
+                        <div className="text-center mb-3">
                           <div className="text-xs text-slate-400">{monthDay}</div>
+                          <div className="font-bold text-ink text-lg leading-tight">{weekday}</div>
                         </div>
 
                         {hostSlots.length === 0 ? (
-                          <p className="text-xs text-slate-300 text-center py-4 italic">No times set</p>
+                          <p className="text-xs text-slate-300 text-center py-4 italic w-24">No times</p>
                         ) : (
-                          <div className="space-y-2">
+                          <div className="flex flex-col gap-px w-28">
                             {blocks.map((block, bi) => {
-                              const availablePs = participants.filter(p =>
-                                block.some(s => (p.availability?.[date] || []).includes(s))
-                              )
-                              const count  = availablePs.length
-                              const pct    = participants.length > 0 ? count / participants.length : 0
-                              const isBest = `${date}|${bi}` === bestBlockKey && count > 0
-                              const allFree = count === participants.length && count > 0
-
+                              const isBestBlock = `${date}|${bi}` === bestBlockKey && bestCount > 0
                               return (
-                                <div
-                                  key={bi}
-                                  className={`rounded-xl border overflow-hidden ${
-                                    isBest ? 'border-green-200' : 'border-slate-100'
-                                  }`}
-                                >
-                                  {/* Block header */}
-                                  <div className={`px-3 py-1.5 flex items-center justify-between ${
-                                    isBest ? 'bg-green-50' : 'bg-slate-50'
-                                  }`}>
-                                    <span className="text-xs font-semibold text-slate-600">
-                                      {formatBlockRange(block)}
-                                    </span>
-                                    {isBest && (
-                                      <span className="text-[10px] font-bold text-green-600 uppercase tracking-wide ml-2 shrink-0">
-                                        Best
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  {/* Block body */}
-                                  <div className="px-3 py-2.5">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                      <span className={`text-xs font-semibold ${
-                                        allFree ? 'text-green-600' : 'text-slate-500'
-                                      }`}>
-                                        {count}/{participants.length} {count === 1 ? 'person' : 'people'}
-                                      </span>
-                                    </div>
-                                    <div className="h-1.5 bg-slate-100 rounded-full mb-2.5">
+                                <div key={bi} className={`flex flex-col gap-px ${isBestBlock ? 'ring-2 ring-green-500 ring-offset-1 rounded-sm' : ''}`}>
+                                  {block.map(slot => {
+                                    const availablePs = participants.filter(p =>
+                                      (p.availability?.[date] || []).includes(slot)
+                                    )
+                                    const count = availablePs.length
+                                    const pct   = participants.length > 0 ? count / participants.length : 0
+                                    const tooltipNames = availablePs.map(p => p.name).join(', ')
+                                    return (
                                       <div
-                                        className={`h-full rounded-full transition-all duration-300 ${
-                                          allFree ? 'bg-green-400' : 'bg-gather-400'
-                                        }`}
-                                        style={{ width: `${pct * 100}%` }}
-                                      />
-                                    </div>
-                                    {availablePs.length > 0 && (
-                                      <div className="flex flex-wrap gap-1">
-                                        {availablePs.map(p => {
-                                          const pi = participants.indexOf(p)
-                                          return (
-                                            <div
-                                              key={p.id || pi}
-                                              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                                              style={{ background: COLORS[pi % COLORS.length] }}
-                                              title={p.name}
-                                            >
-                                              {(p.name || '?')[0].toUpperCase()}
-                                            </div>
-                                          )
-                                        })}
+                                        key={slot}
+                                        className="h-8 w-full rounded-sm transition-all duration-200 cursor-default relative group"
+                                        style={{ background: heatColor(pct) }}
+                                        title={count === 0
+                                          ? `${formatSlot(slot)} — nobody free`
+                                          : `${formatSlot(slot)} — ${count}/${participants.length}: ${tooltipNames}`}
+                                      >
+                                        {/* Hover overlay showing count */}
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <span className={`text-[10px] font-bold ${pct > 0.5 ? 'text-white' : 'text-slate-600'}`}>
+                                            {count}/{participants.length}
+                                          </span>
+                                        </div>
                                       </div>
-                                    )}
-                                  </div>
+                                    )
+                                  })}
                                 </div>
                               )
                             })}
