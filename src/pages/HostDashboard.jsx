@@ -363,10 +363,10 @@ export default function HostDashboard() {
               </div>
             )}
 
-            {/* Invite link */}
+            {/* Invite link + share actions */}
             <div className="mt-5 pt-4 border-t border-slate-50">
               <p className="text-xs text-slate-400 mb-2">Invite link</p>
-              <div className="flex gap-2">
+              <div className="flex gap-2 mb-3">
                 <div className="flex-1 px-3 py-2 bg-slate-50 rounded-lg text-xs text-slate-400 font-mono truncate">
                   {inviteLink}
                 </div>
@@ -376,6 +376,37 @@ export default function HostDashboard() {
                 >
                   {copied ? '✓' : 'Copy'}
                 </button>
+              </div>
+              <div className="flex gap-2">
+                <a
+                  href={`mailto:?subject=${encodeURIComponent(`You're invited: ${event.name}`)}&body=${encodeURIComponent(`Hi!\n\nYou've been invited to share your availability for "${event.name}".\n\nClick the link below to pick your times — no sign-up needed:\n${inviteLink}\n\nThanks!`)}`}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Email
+                </a>
+                <a
+                  href={`sms:?&body=${encodeURIComponent(`You're invited to "${event.name}"! Pick your availability here (no sign-up needed): ${inviteLink}`)}`}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                  Text
+                </a>
+                {typeof navigator !== 'undefined' && navigator.share && (
+                  <button
+                    onClick={() => navigator.share({ title: event.name, text: `You're invited to "${event.name}"! Pick your availability here:`, url: inviteLink })}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                    </svg>
+                    Share
+                  </button>
+                )}
               </div>
             </div>
           </div>
