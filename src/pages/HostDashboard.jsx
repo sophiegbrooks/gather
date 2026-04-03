@@ -221,6 +221,35 @@ export default function HostDashboard() {
             ) : (
               <div className="overflow-x-auto -mx-6 px-6 pb-2">
                 <div className="flex gap-3 min-w-max">
+                  {/* Time axis — built from the union of all slots across all dates */}
+                  {(() => {
+                    const allSlots = [...new Set(
+                      (event.selectedDates || []).flatMap(d => event.timeSlots?.[d] || [])
+                    )].sort()
+                    const axisBlocks = getBlocks(allSlots)
+                    return (
+                      <div className="shrink-0 flex flex-col">
+                        {/* Spacer matching date header height */}
+                        <div className="mb-3 h-[52px]" />
+                        <div className="flex flex-col gap-px">
+                          {axisBlocks.map((block, bi) => (
+                            <div key={bi} className="flex flex-col gap-px">
+                              {block.map((slot, si) => (
+                                <div key={slot} className="h-8 flex items-center justify-end pr-2">
+                                  {si === 0 && (
+                                    <span className="text-[10px] text-slate-400 whitespace-nowrap leading-none">
+                                      {formatSlot(slot)}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   {(event.selectedDates || []).map(date => {
                     const hostSlots = [...(event.timeSlots?.[date] || [])].sort()
                     const blocks    = getBlocks(hostSlots)
