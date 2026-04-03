@@ -234,15 +234,18 @@ export default function HostDashboard() {
                         <div className="flex flex-col gap-px">
                           {axisBlocks.map((block, bi) => (
                             <div key={bi} className="flex flex-col gap-px">
-                              {block.map((slot, si) => (
-                                <div key={slot} className="h-8 flex items-center justify-end pr-2">
-                                  {si === 0 && (
-                                    <span className="text-[10px] text-slate-400 whitespace-nowrap leading-none">
-                                      {formatSlot(slot)}
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
+                              {block.map((slot) => {
+                                const isHour = slot.endsWith(':00')
+                                return (
+                                  <div key={slot} className={`h-8 flex items-center justify-end pr-2 ${isHour ? 'border-t border-slate-200' : ''}`}>
+                                    {isHour && (
+                                      <span className="text-[10px] text-slate-400 whitespace-nowrap leading-none -mt-px">
+                                        {formatSlot(slot)}
+                                      </span>
+                                    )}
+                                  </div>
+                                )
+                              })}
                             </div>
                           ))}
                         </div>
@@ -280,10 +283,11 @@ export default function HostDashboard() {
                                     const count = availablePs.length
                                     const pct   = participants.length > 0 ? count / participants.length : 0
                                     const tooltipNames = availablePs.map(p => p.name).join(', ')
+                                    const isHour = slot.endsWith(':00')
                                     return (
                                       <div
                                         key={slot}
-                                        className="h-8 w-full rounded-sm transition-all duration-200 cursor-default relative group"
+                                        className={`h-8 w-full rounded-sm transition-all duration-200 cursor-default relative group ${isHour ? 'border-t-2 border-white/60' : ''}`}
                                         style={{ background: heatColor(pct) }}
                                         title={count === 0
                                           ? `${formatSlot(slot)} — nobody free`
