@@ -66,8 +66,9 @@ export default function HostDashboard() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { event, loadEventFromStorage } = useEvent()
-  const [copied, setCopied]     = useState(false)
-  const [authUser, setAuthUser] = useState(undefined)
+  const [copied, setCopied]             = useState(false)
+  const [authUser, setAuthUser]         = useState(undefined)
+  const [selectedPId, setSelectedPId]   = useState(null)
 
   useEffect(() => {
     loadEventFromStorage(id)
@@ -206,7 +207,9 @@ export default function HostDashboard() {
             <p className="text-xs text-slate-400 mb-5">
               {participants.length === 0
                 ? 'Waiting for responses — share the invite link below.'
-                : `Darker = more people available. Hover a slot to see who's free.`}
+                : selectedPId
+                ? `Showing availability for ${participants.find(p => p.id === selectedPId)?.name}. Click their name again to reset.`
+                : `Darker = more people available. Click a participant to highlight their slots.`}
             </p>
 
             {participants.length === 0 ? (
@@ -277,28 +280,40 @@ export default function HostDashboard() {
                               return (
                                 <div key={bi} className={`flex flex-col gap-px ${isBestBlock ? 'ring-2 ring-green-500 ring-offset-1 rounded-sm' : ''}`}>
                                   {block.map(slot => {
-                                    const availablePs = participants.filter(p =>
-                                      (p.availability?.[date] || []).includes(slot)
-                                    )
-                                    const count = availablePs.length
-                                    const pct   = participants.length > 0 ? count / participants.length : 0
-                                    const tooltipNames = availablePs.map(p => p.name).join(', ')
                                     const isHour = slot.endsWith(':00')
+                                    const selectedP = selectedPId ? participants.find(p => p.id === selectedPId) : null
+                                    let bg, tooltip, overlayText
+                                    if (selectedP) {
+                                      const free = (selectedP.availability?.[date] || []).includes(slot)
+                                      bg = free ? heatColor(1) : '#f1f5f9'
+                                      tooltip = `${formatSlot(slot)} — ${free ? `${selectedP.name} is free` : `${selectedP.name} is busy`}`
+                                      overlayText = null
+                                    } else {
+                                      const availablePs = participants.filter(p =>
+                                        (p.availability?.[date] || []).includes(slot)
+                                      )
+                                      const count = availablePs.length
+                                      const pct   = participants.length > 0 ? count / participants.length : 0
+                                      bg = heatColor(pct)
+                                      tooltip = count === 0
+                                        ? `${formatSlot(slot)} — nobody free`
+                                        : `${formatSlot(slot)} — ${count}/${participants.length}: ${availablePs.map(p => p.name).join(', ')}`
+                                      overlayText = { text: `${count}/${participants.length}`, light: pct > 0.5 }
+                                    }
                                     return (
                                       <div
                                         key={slot}
                                         className={`h-8 w-full rounded-sm transition-all duration-200 cursor-default relative group ${isHour ? 'border-t-2 border-white/60' : ''}`}
-                                        style={{ background: heatColor(pct) }}
-                                        title={count === 0
-                                          ? `${formatSlot(slot)} — nobody free`
-                                          : `${formatSlot(slot)} — ${count}/${participants.length}: ${tooltipNames}`}
+                                        style={{ background: bg }}
+                                        title={tooltip}
                                       >
-                                        {/* Hover overlay showing count */}
-                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <span className={`text-[10px] font-bold ${pct > 0.5 ? 'text-white' : 'text-slate-600'}`}>
-                                            {count}/{participants.length}
-                                          </span>
-                                        </div>
+                                        {overlayText && (
+                                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <span className={`text-[10px] font-bold ${overlayText.light ? 'text-white' : 'text-slate-600'}`}>
+                                              {overlayText.text}
+                                            </span>
+                                          </div>
+                                        )}
                                       </div>
                                     )
                                   })}
@@ -336,16 +351,28 @@ export default function HostDashboard() {
                   const datesAvail = (event.selectedDates || []).filter(d =>
                     (p.availability?.[d] || []).length > 0
                   )
+                  const isSelected = selectedPId === p.id
                   return (
-                    <div key={p.id || i} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                    <button
+                      key={p.id || i}
+                      onClick={() => setSelectedPId(isSelected ? null : p.id)}
+                      className={`w-full flex items-start gap-3 py-3 first:pt-0 last:pb-0 rounded-xl px-2 -mx-2 transition-colors text-left ${
+                        isSelected ? 'bg-slate-50' : 'hover:bg-slate-50/60'
+                      }`}
+                    >
                       <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 mt-0.5"
-                        style={{ background: COLORS[i % COLORS.length] }}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 mt-0.5 transition-all ${
+                          isSelected ? 'ring-2 ring-offset-2' : ''
+                        }`}
+                        style={{ background: COLORS[i % COLORS.length], ...(isSelected ? { ringColor: COLORS[i % COLORS.length] } : {}) }}
                       >
                         {(p.name || '?')[0].toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-ink text-sm leading-tight">{p.name}</div>
+                        <div className={`font-semibold text-sm leading-tight ${isSelected ? 'text-gather-700' : 'text-ink'}`}>
+                          {p.name}
+                          {isSelected && <span className="ml-1.5 text-[10px] font-normal text-slate-400">click to reset</span>}
+                        </div>
                         {datesAvail.length === 0 ? (
                           <p className="text-xs text-slate-300 mt-0.5">No availability submitted</p>
                         ) : (
@@ -361,7 +388,7 @@ export default function HostDashboard() {
                           </div>
                         )}
                       </div>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
