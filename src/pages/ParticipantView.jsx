@@ -72,6 +72,34 @@ function formatRange({ start, end }) {
 
 const SLOT_H = 14
 
+// Heatmap helpers (mirrored from HostDashboard)
+function heatColor(pct) {
+  if (pct <= 0) return '#f1f5f9'
+  const r = Math.round(187 + (21  - 187) * pct)
+  const g = Math.round(247 + (128 - 247) * pct)
+  const b = Math.round(208 + (61  - 208) * pct)
+  return `rgb(${r},${g},${b})`
+}
+
+function getBlocks(slots) {
+  if (!slots.length) return []
+  const sorted = [...slots].sort()
+  const blocks = []
+  let block = [sorted[0]]
+  for (let i = 1; i < sorted.length; i++) {
+    const [ph, pm] = block[block.length - 1].split(':').map(Number)
+    const [ch, cm] = sorted[i].split(':').map(Number)
+    if ((ch * 60 + cm) - (ph * 60 + pm) <= 15) {
+      block.push(sorted[i])
+    } else {
+      blocks.push(block)
+      block = [sorted[i]]
+    }
+  }
+  blocks.push(block)
+  return blocks
+}
+
 function TimePanel({ date, slots, hostSlots, onChange, onClose }) {
   const AVAILABLE = ALL_SLOTS
 
@@ -375,7 +403,12 @@ export default function ParticipantView() {
   const [activeDate, setActiveDate] = useState(null)
   const [submitted, setSubmitted]   = useState(false)
 
-  useEffect(() => { loadEventFromStorage(id) }, [id])
+  useEffect(() => {
+    loadEventFromStorage(id)
+    // Keep refreshing after submit so the heatmap stays live
+    const interval = setInterval(() => loadEventFromStorage(id), 3000)
+    return () => clearInterval(interval)
+  }, [id])
 
   const handleNameSubmit = () => {
     if (name.trim().length < 1) return
@@ -399,17 +432,167 @@ export default function ParticipantView() {
   const totalSlots = Object.values(availability).reduce((a, v) => a + v.length, 0)
 
   if (submitted) {
+    const participants = event.participants || []
     return (
-      <div className="min-h-screen bg-mist flex items-center justify-center px-6">
-        <div className="text-center max-w-md animate-slide-up">
-          <div className="text-6xl mb-6">🎉</div>
-          <h1 className="text-3xl font-bold text-ink mb-3">You're in!</h1>
-          <p className="text-slate-500 mb-8">
-            Your availability has been submitted. The host will find the best time for everyone.
-          </p>
-          <button onClick={() => navigate('/')} className="px-6 py-3 bg-gather-600 text-white font-semibold rounded-xl hover:bg-gather-700 transition-all">
-            Create your own event →
-          </button>
+      <div className="min-h-screen bg-mist">
+        <header className="bg-white border-b border-slate-100 px-6 py-4">
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-xl font-bold text-gather-700 tracking-tight">gather</span>
+              <span className="text-slate-300">›</span>
+              <h1 className="font-semibold text-ink">{event.name}</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-sm text-slate-500">Live</span>
+            </div>
+          </div>
+        </header>
+
+        <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+          {/* Confirmation banner */}
+          <div className="bg-gather-50 border border-gather-100 rounded-2xl px-6 py-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-gather-500 flex items-center justify-center text-white font-bold text-lg shrink-0">✓</div>
+            <div>
+              <p className="font-bold text-gather-800">You're in, {name}!</p>
+              <p className="text-sm text-gather-600 mt-0.5">Your availability has been submitted. Here's how the group looks so far.</p>
+            </div>
+            <button onClick={() => navigate('/')} className="ml-auto shrink-0 px-4 py-2 bg-white border border-gather-200 text-gather-700 text-sm font-semibold rounded-xl hover:bg-gather-50 transition-colors">
+              Create your own →
+            </button>
+          </div>
+
+          {/* Heatmap */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-6">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-bold text-ink">Group availability</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-400">0%</span>
+                <div className="flex gap-px">
+                  {[0.15, 0.35, 0.55, 0.75, 1].map(v => (
+                    <div key={v} className="w-4 h-3 rounded-sm" style={{ background: heatColor(v) }} />
+                  ))}
+                </div>
+                <span className="text-[10px] text-slate-400">100%</span>
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 mb-5">
+              {participants.length === 0
+                ? 'No responses yet.'
+                : `${participants.length} ${participants.length === 1 ? 'person has' : 'people have'} responded. Darker = more overlap.`}
+            </p>
+
+            {participants.length === 0 ? (
+              <p className="text-slate-300 text-sm text-center py-6 italic">Waiting for responses…</p>
+            ) : (
+              <div className="overflow-x-auto -mx-6 px-6 pb-2">
+                <div className="flex gap-3 min-w-max">
+                  {/* Time axis */}
+                  {(() => {
+                    const allSlots = [...new Set(
+                      (event.selectedDates || []).flatMap(d => event.timeSlots?.[d] || [])
+                    )].sort()
+                    return (
+                      <div className="shrink-0 flex flex-col">
+                        <div className="mb-3 h-[52px]" />
+                        <div className="flex flex-col gap-px">
+                          {getBlocks(allSlots).map((block, bi) => (
+                            <div key={bi} className="flex flex-col gap-px">
+                              {block.map(slot => {
+                                const isHour = slot.endsWith(':00')
+                                return (
+                                  <div key={slot} className={`h-8 flex items-center justify-end pr-2 ${isHour ? 'border-t border-slate-200' : ''}`}>
+                                    {isHour && (
+                                      <span className="text-[10px] text-slate-400 whitespace-nowrap leading-none -mt-px">
+                                        {formatSlot(slot)}
+                                      </span>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {(event.selectedDates || []).map(date => {
+                    const hostSlots = [...(event.timeSlots?.[date] || [])].sort()
+                    const blocks    = getBlocks(hostSlots)
+                    const dateObj   = parseKey(date)
+                    const weekday   = dateObj.toLocaleDateString('en-US', { weekday: 'short' })
+                    const monthDay  = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    return (
+                      <div key={date} className="shrink-0">
+                        <div className="text-center mb-3">
+                          <div className="text-xs text-slate-400">{monthDay}</div>
+                          <div className="font-bold text-ink text-lg leading-tight">{weekday}</div>
+                        </div>
+                        {hostSlots.length === 0 ? (
+                          <p className="text-xs text-slate-300 text-center py-4 italic w-24">No times</p>
+                        ) : (
+                          <div className="flex flex-col gap-px w-28">
+                            {blocks.map((block, bi) => (
+                              <div key={bi} className="flex flex-col gap-px">
+                                {block.map(slot => {
+                                  const count = participants.filter(p =>
+                                    (p.availability?.[date] || []).includes(slot)
+                                  ).length
+                                  const pct = participants.length > 0 ? count / participants.length : 0
+                                  const isHour = slot.endsWith(':00')
+                                  const availNames = participants
+                                    .filter(p => (p.availability?.[date] || []).includes(slot))
+                                    .map(p => p.name).join(', ')
+                                  return (
+                                    <div
+                                      key={slot}
+                                      className={`h-8 w-full rounded-sm cursor-default relative group ${isHour ? 'border-t-2 border-white/60' : ''}`}
+                                      style={{ background: heatColor(pct) }}
+                                      title={count === 0
+                                        ? `${formatSlot(slot)} — nobody free`
+                                        : `${formatSlot(slot)} — ${count}/${participants.length}: ${availNames}`}
+                                    >
+                                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <span className={`text-[10px] font-bold ${pct > 0.5 ? 'text-white' : 'text-slate-600'}`}>
+                                          {count}/{participants.length}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Participant list */}
+          {participants.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-100 p-6">
+              <h2 className="font-bold text-ink mb-4">Who's responded ({participants.length})</h2>
+              <div className="flex flex-wrap gap-2">
+                {participants.map((p, i) => (
+                  <div key={p.id || i} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full">
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                      style={{ background: ['#4ade80','#60a5fa','#f472b6','#fb923c','#a78bfa','#34d399'][i % 6] }}
+                    >
+                      {(p.name || '?')[0].toUpperCase()}
+                    </div>
+                    <span className="text-sm font-medium text-ink">{p.name}</span>
+                    {p.name === name && <span className="text-[10px] text-slate-400">(you)</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     )
