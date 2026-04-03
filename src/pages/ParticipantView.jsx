@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEvent } from '../context/EventContext'
 
@@ -6,7 +6,11 @@ const ALL_SLOTS = (() => {
   const slots = []
   for (let h = 6; h <= 22; h++) {
     slots.push(`${String(h).padStart(2,'0')}:00`)
-    if (h < 22) slots.push(`${String(h).padStart(2,'0')}:30`)
+    slots.push(`${String(h).padStart(2,'0')}:15`)
+    if (h < 22) {
+      slots.push(`${String(h).padStart(2,'0')}:30`)
+      slots.push(`${String(h).padStart(2,'0')}:45`)
+    }
   }
   return slots
 })()
@@ -15,7 +19,20 @@ function formatSlot(slot) {
   const [h, m] = slot.split(':').map(Number)
   const ampm = h < 12 ? 'AM' : 'PM'
   const hour = h === 0 ? 12 : h > 12 ? h - 12 : h
-  return `${hour}:${m === 0 ? '00' : m} ${ampm}`
+  return `${hour}:${String(m).padStart(2,'0')} ${ampm}`
+}
+
+function formatHour(slot) {
+  const [h] = slot.split(':').map(Number)
+  const ampm = h < 12 ? 'AM' : 'PM'
+  const hour = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return `${hour} ${ampm}`
+}
+
+function addFifteen(slot) {
+  const [h, m] = slot.split(':').map(Number)
+  const total  = h * 60 + m + 15
+  return `${String(Math.floor(total / 60)).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`
 }
 
 function parseKey(key) {
@@ -23,121 +40,325 @@ function parseKey(key) {
   return new Date(y, m - 1, d)
 }
 
+function slotsInRange(start, end, available) {
+  const startIdx = available.indexOf(start)
+  const endIdx   = available.indexOf(end)
+  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) return []
+  return available.slice(startIdx, endIdx)
+}
+
+function getSelectedRanges(pendingSlots, available) {
+  const sorted = available.filter(s => pendingSlots.has(s))
+  if (!sorted.length) return []
+  const ranges = []
+  let start = sorted[0], prev = sorted[0]
+  for (let i = 1; i < sorted.length; i++) {
+    if (available.indexOf(sorted[i]) - available.indexOf(prev) > 1) {
+      ranges.push({ start, end: prev })
+      start = sorted[i]
+    }
+    prev = sorted[i]
+  }
+  ranges.push({ start, end: prev })
+  return ranges
+}
+
+function formatRange({ start, end }) {
+  const s = formatSlot(start)
+  const e = formatSlot(addFifteen(end))
+  const sAp = s.slice(-2), eAp = e.slice(-2)
+  return sAp === eAp ? `${s.slice(0, -3)} – ${e}` : `${s} – ${e}`
+}
+
+const SLOT_H = 14
+
 function TimePanel({ date, slots, hostSlots, onChange, onClose }) {
   const AVAILABLE = hostSlots.length > 0 ? hostSlots : ALL_SLOTS
 
-  const [dragging, setDragging]   = useState(false)
-  const [dragMode, setDragMode]   = useState('add')
-  const [dragStart, setDragStart] = useState(null)
-  const [pending, setPending]     = useState(new Set(slots))
+  const [mode, setMode]             = useState('range')
+  const [pending, setPending]       = useState(new Set(slots))
+  const [hoverIdx, setHoverIdx]     = useState(null)
+  const [dragStart, setDragStart]   = useState(null)
+  const [dragMode, setDragMode]     = useState('add')
+  const [rangeStart, setRangeStart] = useState(AVAILABLE[0] || '09:00')
+  const [rangeEnd, setRangeEnd]     = useState(AVAILABLE.find(s => s > (AVAILABLE[0] || '09:00')) || '17:00')
+  const dragging  = useRef(false)
+  const scrollRef = useRef(null)
 
   const dateObj = parseKey(date)
   const label   = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
-  const getRange = (a, b) => {
-    const [lo, hi] = [Math.min(a, b), Math.max(a, b)]
-    return AVAILABLE.slice(lo, hi + 1)
+  useEffect(() => {
+    if (scrollRef.current) {
+      const eightAMIdx = AVAILABLE.findIndex(s => s >= '08:00')
+      scrollRef.current.scrollTop = Math.max(0, eightAMIdx) * SLOT_H
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const applyDrag = (from, to, mode, base) => {
+    const [lo, hi] = [Math.min(from, to), Math.max(from, to)]
+    const next = new Set(base)
+    AVAILABLE.slice(lo, hi + 1).forEach(s => mode === 'add' ? next.add(s) : next.delete(s))
+    return next
   }
 
   const handleMouseDown = (idx) => {
-    const slot = AVAILABLE[idx]
-    const mode = pending.has(slot) ? 'remove' : 'add'
-    setDragMode(mode)
+    const m = pending.has(AVAILABLE[idx]) ? 'remove' : 'add'
+    dragging.current = true
+    setDragMode(m)
     setDragStart(idx)
-    setDragging(true)
-    setPending(prev => {
-      const next = new Set(prev)
-      mode === 'add' ? next.add(slot) : next.delete(slot)
-      return next
-    })
+    setPending(applyDrag(idx, idx, m, pending))
   }
 
   const handleMouseEnter = (idx) => {
-    if (!dragging || dragStart === null) return
-    const range = getRange(dragStart, idx)
+    setHoverIdx(idx)
+    if (!dragging.current || dragStart === null) return
+    setPending(prev => applyDrag(dragStart, idx, dragMode, prev))
+  }
+
+  useEffect(() => {
+    const up = () => { dragging.current = false }
+    window.addEventListener('mouseup', up)
+    return () => window.removeEventListener('mouseup', up)
+  }, [])
+
+  const ranges = getSelectedRanges(pending, AVAILABLE)
+
+  const addRange = () => {
+    const toAdd = slotsInRange(rangeStart, rangeEnd, AVAILABLE)
+    if (toAdd.length === 0) return
     setPending(prev => {
       const next = new Set(prev)
-      range.forEach(s => dragMode === 'add' ? next.add(s) : next.delete(s))
+      toAdd.forEach(s => next.add(s))
       return next
     })
   }
 
-  useEffect(() => {
-    const up = () => setDragging(false)
-    window.addEventListener('mouseup', up)
-    return () => window.removeEventListener('mouseup', up)
-  }, [])
+  const PRESETS = [
+    { label: 'Morning',   test: h => h >= 8  && h < 12 },
+    { label: 'Afternoon', test: h => h >= 12 && h < 17 },
+    { label: 'All day',   test: h => h >= 9  && h < 17 },
+    { label: 'Evening',   test: h => h >= 17 && h < 21 },
+  ]
 
   const confirm = () => {
     onChange(date, [...pending].sort())
     onClose()
   }
 
-  const amSlots = AVAILABLE.filter(s => parseInt(s) < 12)
-  const pmSlots = AVAILABLE.filter(s => parseInt(s) >= 12)
-
-  const SlotRow = ({ slot }) => {
-    const idx      = AVAILABLE.indexOf(slot)
-    const selected = pending.has(slot)
-    const isHour   = slot.endsWith(':00')
-    return (
-      <div
-        onMouseDown={() => handleMouseDown(idx)}
-        onMouseEnter={() => handleMouseEnter(idx)}
-        className={`flex items-center gap-3 px-4 py-1.5 cursor-pointer no-select rounded-lg transition-colors ${
-          selected ? 'bg-gather-500 text-white' : 'hover:bg-gather-50 text-slate-600'
-        }`}
-      >
-        <span className={`text-xs w-14 shrink-0 ${isHour ? (selected ? 'text-white/80 font-medium' : 'text-slate-400 font-medium') : 'opacity-0'}`}>
-          {formatSlot(slot)}
-        </span>
-        <div className={`flex-1 h-5 rounded transition-colors ${selected ? 'bg-white/20' : 'bg-slate-100'}`} />
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
+    <div className="flex flex-col h-full select-none">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-3 shrink-0">
         <div>
-          <h3 className="font-bold text-ink text-lg">{label}</h3>
-          <p className="text-sm text-slate-400">{pending.size} slots selected</p>
+          <h3 className="font-bold text-ink text-base leading-tight">{label}</h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {ranges.length > 0
+              ? `${ranges.length} time frame${ranges.length !== 1 ? 's' : ''} selected`
+              : 'Select your available times'}
+          </p>
         </div>
-        <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">✕</button>
+        <button
+          onClick={onClose}
+          className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 text-xs transition-colors shrink-0"
+        >✕</button>
       </div>
-      <div className="flex flex-wrap gap-2 mb-4">
-        {[
-          { label: 'Morning', slots: AVAILABLE.filter(s => { const h = parseInt(s); return h >= 8 && h < 12 }) },
-          { label: 'Afternoon', slots: AVAILABLE.filter(s => { const h = parseInt(s); return h >= 12 && h < 17 }) },
-          { label: 'All day', slots: AVAILABLE.filter(s => { const h = parseInt(s); return h >= 9 && h < 17 }) },
-        ].filter(p => p.slots.length > 0).map(p => (
-          <button key={p.label} onClick={() => setPending(new Set(p.slots))}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-gather-100 hover:text-gather-700 text-slate-500 text-xs font-medium rounded-full transition-colors">
-            {p.label}
-          </button>
+
+      {/* Mode tabs */}
+      <div className="flex gap-1 mb-3 shrink-0 bg-slate-100 rounded-lg p-0.5">
+        {[{ id: 'range', label: 'Start / End' }, { id: 'drag', label: 'Drag' }].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setMode(t.id)}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
+              mode === t.id ? 'bg-white text-ink shadow-sm' : 'text-slate-400 hover:text-slate-600'
+            }`}
+          >{t.label}</button>
         ))}
-        <button onClick={() => setPending(new Set())}
-          className="px-3 py-1.5 bg-slate-100 hover:bg-red-50 hover:text-red-400 text-slate-500 text-xs font-medium rounded-full transition-colors">
-          Clear
-        </button>
       </div>
-      <div className="flex-1 overflow-y-auto pr-1">
-        {amSlots.length > 0 && (
-          <>
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-1 mb-1">Morning</div>
-            {amSlots.map(slot => <SlotRow key={slot} slot={slot} />)}
-          </>
-        )}
-        {pmSlots.length > 0 && (
-          <>
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-2 mt-1 mb-1">Afternoon & Evening</div>
-            {pmSlots.map(slot => <SlotRow key={slot} slot={slot} />)}
-          </>
-        )}
-      </div>
-      <button onClick={confirm}
-        className="mt-4 w-full py-3 bg-gather-600 text-white font-semibold rounded-xl hover:bg-gather-700 transition-all shadow-md shadow-gather-100">
-        Confirm {pending.size} slots →
+
+      {mode === 'range' ? (
+        <div className="flex-1 flex flex-col gap-3 overflow-y-auto">
+          {/* Added ranges */}
+          {ranges.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Added time slots</p>
+              {ranges.map((r, i) => (
+                <div key={i} className="flex items-center justify-between px-3 py-2 bg-gather-50 rounded-lg border border-gather-100">
+                  <span className="text-sm font-semibold text-gather-700">{formatRange(r)}</span>
+                  <button
+                    onClick={() => {
+                      const toRemove = slotsInRange(r.start, addFifteen(r.end), AVAILABLE)
+                      setPending(prev => {
+                        const next = new Set(prev)
+                        toRemove.forEach(s => next.delete(s))
+                        next.delete(r.end)
+                        return next
+                      })
+                    }}
+                    className="text-slate-300 hover:text-red-400 transition-colors text-sm font-bold ml-2"
+                  >×</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Range pickers */}
+          <div>
+            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-2">
+              {ranges.length > 0 ? 'Add another slot' : 'Select a time slot'}
+            </p>
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Start</label>
+                <select
+                  value={rangeStart}
+                  onChange={e => setRangeStart(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-ink bg-white focus:border-gather-400 outline-none"
+                >
+                  {AVAILABLE.map(s => (
+                    <option key={s} value={s}>{formatSlot(s)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">End</label>
+                <select
+                  value={rangeEnd > rangeStart ? rangeEnd : AVAILABLE.find(s => s > rangeStart) || AVAILABLE[AVAILABLE.length - 1]}
+                  onChange={e => setRangeEnd(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-ink bg-white focus:border-gather-400 outline-none"
+                >
+                  {AVAILABLE.filter(s => s > rangeStart).map(s => (
+                    <option key={s} value={s}>{formatSlot(s)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              addRange()
+              setRangeStart(rangeEnd)
+              setRangeEnd(AVAILABLE.find(s => s > rangeEnd) || AVAILABLE[AVAILABLE.length - 1])
+            }}
+            disabled={rangeEnd <= rangeStart}
+            className="w-full py-2 bg-gather-100 text-gather-700 font-semibold rounded-lg text-sm hover:bg-gather-200 transition-colors disabled:opacity-40"
+          >
+            + Add this slot
+          </button>
+          {ranges.length > 0 && (
+            <button
+              onClick={() => setPending(new Set())}
+              className="w-full py-1.5 text-xs text-slate-400 hover:text-red-400 transition-colors"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Drag mode: selected chips */}
+          <div className="mb-3 shrink-0 min-h-[28px]">
+            {ranges.length > 0 ? (
+              <>
+                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-1.5">Selected</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {ranges.map((r, i) => (
+                    <span key={i} className="px-2.5 py-1 bg-gather-100 text-gather-700 rounded-full text-xs font-semibold">
+                      {formatRange(r)}
+                    </span>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-[11px] text-slate-300 italic">No times selected yet</p>
+            )}
+          </div>
+
+          {/* Presets */}
+          <div className="flex gap-1.5 mb-3 flex-wrap shrink-0">
+            {PRESETS.map(p => {
+              const ps     = AVAILABLE.filter(s => p.test(parseInt(s)))
+              const active = ps.length > 0 && ps.every(s => pending.has(s))
+              return (
+                <button
+                  key={p.label}
+                  onClick={() => setPending(prev => {
+                    const next = new Set(prev)
+                    active ? ps.forEach(s => next.delete(s)) : ps.forEach(s => next.add(s))
+                    return next
+                  })}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-all ${
+                    active
+                      ? 'bg-gather-500 text-white border-gather-500'
+                      : 'bg-white text-slate-500 border-slate-200 hover:border-gather-300 hover:text-gather-600'
+                  }`}
+                >{p.label}</button>
+              )
+            })}
+            <button
+              onClick={() => setPending(new Set())}
+              className="px-2.5 py-1 text-xs font-medium rounded-full border border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-400 transition-all bg-white"
+            >Clear</button>
+          </div>
+
+          {/* Scrollable time grid */}
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto"
+            onMouseLeave={() => setHoverIdx(null)}
+          >
+            {AVAILABLE.map((slot, idx) => {
+              const selected   = pending.has(slot)
+              const isHov      = hoverIdx === idx && !dragging.current
+              const min        = parseInt(slot.split(':')[1])
+              const isHourMark = min === 0
+              const isHalfMark = min === 30
+              const prevSel = idx > 0                    && pending.has(AVAILABLE[idx - 1])
+              const nextSel = idx < AVAILABLE.length - 1 && pending.has(AVAILABLE[idx + 1])
+              const isTop   = selected && !prevSel
+              const isBot   = selected && !nextSel
+              return (
+                <div
+                  key={slot}
+                  onMouseDown={() => handleMouseDown(idx)}
+                  onMouseEnter={() => handleMouseEnter(idx)}
+                  style={{ height: `${SLOT_H}px` }}
+                  className={`flex items-center cursor-pointer ${isHourMark ? 'border-t border-slate-100' : ''}`}
+                >
+                  <div className="w-14 shrink-0 flex items-center justify-end pr-2 pointer-events-none">
+                    {isHourMark && (
+                      <span className="text-[10px] text-slate-400 font-medium leading-none -mt-[1px]">
+                        {formatHour(slot)}
+                      </span>
+                    )}
+                    {isHalfMark && (
+                      <span className="text-[9px] text-slate-300 leading-none">:30</span>
+                    )}
+                  </div>
+                  <div
+                    className={`
+                      flex-1 h-full mr-2 transition-colors duration-75
+                      ${isTop ? 'rounded-t-md' : ''}
+                      ${isBot ? 'rounded-b-md' : ''}
+                      ${selected ? 'bg-gather-400' : isHov ? 'bg-gather-100' : 'bg-slate-50'}
+                    `}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Footer */}
+      <button
+        onClick={confirm}
+        className="mt-4 shrink-0 w-full py-3 bg-gather-600 text-white font-semibold rounded-xl hover:bg-gather-700 transition-all shadow-md shadow-gather-100 text-sm"
+      >
+        {ranges.length > 0
+          ? `Save ${ranges.length} time frame${ranges.length !== 1 ? 's' : ''} ✓`
+          : 'Save (no times) ✓'}
       </button>
     </div>
   )
@@ -298,7 +519,9 @@ export default function ParticipantView() {
               {/* Submit */}
               <div className="mt-8 flex items-center justify-between">
                 <span className="text-sm text-slate-400">
-                  {totalSlots > 0 ? `${totalSlots} time slots selected across ${Object.keys(availability).filter(d => availability[d].length > 0).length} dates` : 'Select your available times above'}
+                  {totalSlots > 0
+                    ? `${totalSlots} time slots selected across ${Object.keys(availability).filter(d => availability[d].length > 0).length} dates`
+                    : 'Select your available times above'}
                 </span>
                 <button
                   onClick={handleSubmit}
@@ -312,7 +535,7 @@ export default function ParticipantView() {
 
             {/* Time panel */}
             {activeDate && (
-              <div className="w-72 shrink-0 bg-white rounded-2xl border border-slate-100 shadow-xl p-5 h-[540px] flex flex-col animate-panel-in">
+              <div className="w-72 shrink-0 bg-white rounded-2xl border border-slate-100 shadow-xl p-5 h-[580px] flex flex-col animate-panel-in">
                 <TimePanel
                   date={activeDate}
                   slots={availability[activeDate] || []}
