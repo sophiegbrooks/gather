@@ -3,14 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useEvent } from '../context/EventContext'
 import { supabase } from '../lib/supabase'
 
-const ALL_SLOTS = (() => {
-  const slots = []
-  for (let h = 6; h <= 22; h++) {
-    slots.push(`${String(h).padStart(2,'0')}:00`)
-    if (h < 22) slots.push(`${String(h).padStart(2,'0')}:30`)
-  }
-  return slots
-})()
+const COLORS = ['#4ade80','#60a5fa','#f472b6','#fb923c','#a78bfa','#34d399']
 
 function formatSlot(slot) {
   const [h, m] = slot.split(':').map(Number)
@@ -24,48 +17,48 @@ function parseKey(key) {
   return new Date(y, m - 1, d)
 }
 
-// Compute best slots (most participants available)
-function getBestSlots(event) {
-  const scores = {}
-  const participants = event.participants || []
-  if (participants.length === 0) return []
+function addFifteen(slot) {
+  const [h, m] = slot.split(':').map(Number)
+  const total = h * 60 + m + 15
+  return `${String(Math.floor(total / 60)).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`
+}
 
-  event.selectedDates?.forEach(date => {
-    const hostSlots = event.timeSlots?.[date] || []
-    hostSlots.forEach(slot => {
-      const key = `${date}|${slot}`
-      scores[key] = participants.filter(p =>
-        (p.availability?.[date] || []).includes(slot)
-      ).length
-    })
-  })
+// Group sorted slot strings into contiguous runs (gap > 15 min = new block)
+function getBlocks(slots) {
+  if (!slots.length) return []
+  const sorted = [...slots].sort()
+  const blocks = []
+  let block = [sorted[0]]
+  for (let i = 1; i < sorted.length; i++) {
+    const [ph, pm] = block[block.length - 1].split(':').map(Number)
+    const [ch, cm] = sorted[i].split(':').map(Number)
+    if ((ch * 60 + cm) - (ph * 60 + pm) <= 15) {
+      block.push(sorted[i])
+    } else {
+      blocks.push(block)
+      block = [sorted[i]]
+    }
+  }
+  blocks.push(block)
+  return blocks
+}
 
-  return Object.entries(scores)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .filter(([, count]) => count > 0)
-    .map(([key, count]) => {
-      const [date, slot] = key.split('|')
-      const d = parseKey(date)
-      return {
-        label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-        slot: formatSlot(slot),
-        count,
-        total: participants.length,
-        pct: Math.round((count / participants.length) * 100),
-      }
-    })
+function formatBlockRange(block) {
+  const start = formatSlot(block[0])
+  const end   = formatSlot(addFifteen(block[block.length - 1]))
+  const sAp = start.slice(-2), eAp = end.slice(-2)
+  return sAp === eAp
+    ? `${start.slice(0, -3)} – ${end}`
+    : `${start} – ${end}`
 }
 
 export default function HostDashboard() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { event, loadEventFromStorage } = useEvent()
-  const [copied, setCopied] = useState(false)
-  const [activeDate, setActiveDate] = useState(null)
-  const [authUser, setAuthUser] = useState(undefined) // undefined = loading, null = guest
+  const [copied, setCopied]     = useState(false)
+  const [authUser, setAuthUser] = useState(undefined)
 
-  // Poll for updates every 3s
   useEffect(() => {
     loadEventFromStorage(id)
     const interval = setInterval(() => loadEventFromStorage(id), 3000)
@@ -76,7 +69,8 @@ export default function HostDashboard() {
     supabase.auth.getUser().then(({ data }) => setAuthUser(data?.user ?? null))
   }, [])
 
-  const inviteLink = `${window.location.origin}/event/${id}`
+  const inviteLink   = `${window.location.origin}/event/${id}`
+  const participants = event.participants || []
 
   const handleCopy = () => {
     navigator.clipboard.writeText(inviteLink)
@@ -84,20 +78,21 @@ export default function HostDashboard() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const participants = event.participants || []
-  const bestSlots   = getBestSlots(event)
-
-  // Heatmap: for selected date, show slot → count
-  const activeSlots = activeDate ? (event.timeSlots?.[activeDate] || []) : []
-  const slotCounts = activeDate
-    ? Object.fromEntries(
-        activeSlots.map(s => [
-          s,
-          participants.filter(p => (p.availability?.[activeDate] || []).includes(s)).length,
-        ])
-      )
-    : {}
-  const maxCount = Math.max(1, ...Object.values(slotCounts))
+  // Find the single global best block (highest participant overlap, earliest date wins ties)
+  let bestBlockKey = null
+  let bestCount    = 0
+  ;(event.selectedDates || []).forEach(date => {
+    const slots = [...(event.timeSlots?.[date] || [])].sort()
+    getBlocks(slots).forEach((block, bi) => {
+      const count = participants.filter(p =>
+        block.some(s => (p.availability?.[date] || []).includes(s))
+      ).length
+      if (count > bestCount) {
+        bestCount    = count
+        bestBlockKey = `${date}|${bi}`
+      }
+    })
+  })
 
   if (!event.id) {
     return (
@@ -109,6 +104,7 @@ export default function HostDashboard() {
 
   return (
     <div className="min-h-screen bg-mist">
+
       {/* Header */}
       <header className="bg-white border-b border-slate-100 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -161,15 +157,14 @@ export default function HostDashboard() {
 
       <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Left column */}
+        {/* ── Left column ── */}
         <div className="lg:col-span-2 space-y-6">
 
           {/* Stats row */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             {[
               { label: 'Participants', value: participants.length },
               { label: 'Dates proposed', value: event.selectedDates?.length || 0 },
-              { label: 'Response rate', value: participants.length > 0 ? '100%' : '—' },
             ].map(stat => (
               <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 p-5">
                 <div className="text-3xl font-bold text-ink">{stat.value}</div>
@@ -178,18 +173,18 @@ export default function HostDashboard() {
             ))}
           </div>
 
-          {/* Best times */}
+          {/* Availability columns */}
           <div className="bg-white rounded-2xl border border-slate-100 p-6">
-            <h2 className="font-bold text-ink mb-4 flex items-center gap-2">
-              Best times
-              {participants.length === 0 && (
-                <span className="text-xs text-slate-400 font-normal">Waiting for responses…</span>
-              )}
-            </h2>
-            {bestSlots.length === 0 ? (
-              <div className="py-8 text-center">
-                <p className="text-slate-400">Share the link to start collecting availability.</p>
-                <div className="mt-4 flex items-center gap-2 bg-slate-50 rounded-xl px-4 py-3 max-w-sm mx-auto">
+            <h2 className="font-bold text-ink mb-1">Availability</h2>
+            <p className="text-xs text-slate-400 mb-5">
+              {participants.length === 0
+                ? 'Waiting for responses — share the invite link below.'
+                : `Showing who's free for each proposed time.`}
+            </p>
+
+            {participants.length === 0 ? (
+              <div className="py-6 text-center">
+                <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-4 py-3 max-w-sm mx-auto">
                   <span className="text-slate-400 text-sm font-mono truncate">{inviteLink}</span>
                   <button onClick={handleCopy} className="text-gather-600 text-sm font-semibold shrink-0 hover:text-gather-700">
                     {copied ? '✓' : 'Copy'}
@@ -197,156 +192,151 @@ export default function HostDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-3">
-                {bestSlots.map((s, i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                      i === 0 ? 'bg-gather-500 text-white' : 'bg-gather-100 text-gather-600'
-                    }`}>
-                      {i + 1}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-ink text-sm">{s.label} · {s.slot}</span>
-                        <span className="text-sm text-slate-400">{s.count}/{s.total}</span>
-                      </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gather-500 rounded-full transition-all duration-500"
-                          style={{ width: `${s.pct}%` }}
-                        />
-                      </div>
-                    </div>
-                    <span className="text-sm font-bold text-gather-600 w-10 text-right">{s.pct}%</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+              <div className="overflow-x-auto -mx-6 px-6 pb-2">
+                <div className="flex gap-4 min-w-max">
+                  {(event.selectedDates || []).map(date => {
+                    const hostSlots = [...(event.timeSlots?.[date] || [])].sort()
+                    const blocks    = getBlocks(hostSlots)
+                    const dateObj   = parseKey(date)
+                    const weekday   = dateObj.toLocaleDateString('en-US', { weekday: 'short' })
+                    const monthDay  = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
-          {/* Availability heatmap */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-6">
-            <h2 className="font-bold text-ink mb-4">Availability heatmap</h2>
-            {event.selectedDates?.length === 0 ? (
-              <p className="text-slate-400 text-sm">No dates selected yet.</p>
-            ) : (
-              <>
-                <div className="flex flex-wrap gap-2 mb-5">
-                  {event.selectedDates?.map(d => {
-                    const obj = parseKey(d)
-                    const label = obj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                     return (
-                      <button
-                        key={d}
-                        onClick={() => setActiveDate(activeDate === d ? null : d)}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                          activeDate === d
-                            ? 'bg-gather-600 text-white'
-                            : 'bg-gather-50 text-gather-700 hover:bg-gather-100'
-                        }`}
-                      >
-                        {label}
-                      </button>
+                      <div key={date} className="w-52 shrink-0">
+                        {/* Date header */}
+                        <div className="text-center mb-3 pb-2 border-b border-slate-100">
+                          <div className="font-bold text-ink text-sm">{weekday}</div>
+                          <div className="text-xs text-slate-400">{monthDay}</div>
+                        </div>
+
+                        {hostSlots.length === 0 ? (
+                          <p className="text-xs text-slate-300 text-center py-4 italic">No times set</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {blocks.map((block, bi) => {
+                              const availablePs = participants.filter(p =>
+                                block.some(s => (p.availability?.[date] || []).includes(s))
+                              )
+                              const count  = availablePs.length
+                              const pct    = participants.length > 0 ? count / participants.length : 0
+                              const isBest = `${date}|${bi}` === bestBlockKey && count > 0
+                              const allFree = count === participants.length && count > 0
+
+                              return (
+                                <div
+                                  key={bi}
+                                  className={`rounded-xl border overflow-hidden ${
+                                    isBest ? 'border-green-200' : 'border-slate-100'
+                                  }`}
+                                >
+                                  {/* Block header */}
+                                  <div className={`px-3 py-1.5 flex items-center justify-between ${
+                                    isBest ? 'bg-green-50' : 'bg-slate-50'
+                                  }`}>
+                                    <span className="text-xs font-semibold text-slate-600">
+                                      {formatBlockRange(block)}
+                                    </span>
+                                    {isBest && (
+                                      <span className="text-[10px] font-bold text-green-600 uppercase tracking-wide ml-2 shrink-0">
+                                        Best
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Block body */}
+                                  <div className="px-3 py-2.5">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <span className={`text-xs font-semibold ${
+                                        allFree ? 'text-green-600' : 'text-slate-500'
+                                      }`}>
+                                        {count}/{participants.length} {count === 1 ? 'person' : 'people'}
+                                      </span>
+                                    </div>
+                                    <div className="h-1.5 bg-slate-100 rounded-full mb-2.5">
+                                      <div
+                                        className={`h-full rounded-full transition-all duration-300 ${
+                                          allFree ? 'bg-green-400' : 'bg-gather-400'
+                                        }`}
+                                        style={{ width: `${pct * 100}%` }}
+                                      />
+                                    </div>
+                                    {availablePs.length > 0 && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {availablePs.map(p => {
+                                          const pi = participants.indexOf(p)
+                                          return (
+                                            <div
+                                              key={p.id || pi}
+                                              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                                              style={{ background: COLORS[pi % COLORS.length] }}
+                                              title={p.name}
+                                            >
+                                              {(p.name || '?')[0].toUpperCase()}
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
                     )
                   })}
                 </div>
-
-                {activeDate ? (
-                  <div className="space-y-1 max-h-64 overflow-y-auto">
-                    {activeSlots.map(slot => {
-                      const count = slotCounts[slot] || 0
-                      const pct   = participants.length > 0 ? count / maxCount : 0
-                      return (
-                        <div key={slot} className="flex items-center gap-3">
-                          <span className="text-xs text-slate-400 w-20 shrink-0">{formatSlot(slot)}</span>
-                          <div className="flex-1 h-6 bg-slate-50 rounded-lg overflow-hidden">
-                            <div
-                              className="h-full rounded-lg transition-all duration-300"
-                              style={{
-                                width: `${pct * 100}%`,
-                                background: `rgba(34, 197, 94, ${0.2 + pct * 0.8})`,
-                              }}
-                            />
-                          </div>
-                          <span className="text-xs text-slate-400 w-8 text-right">{count}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-slate-400 text-sm">Select a date above to see the heatmap.</p>
-                )}
-              </>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Right column */}
+        {/* ── Right column ── */}
         <div className="space-y-6">
+
           {/* Participants */}
           <div className="bg-white rounded-2xl border border-slate-100 p-6">
-            <h2 className="font-bold text-ink mb-4 flex items-center justify-between">
-              Participants
-              <span className="text-xs text-slate-400 font-normal">Auto-refreshing</span>
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-ink">Participants</h2>
+              <span className="text-xs text-slate-400">Auto-refreshing</span>
+            </div>
+
             {participants.length === 0 ? (
               <div className="py-6 text-center">
                 <p className="text-slate-400 text-sm">No responses yet.<br />Share the link below.</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="divide-y divide-slate-50">
                 {participants.map((p, i) => {
-                  const colors = ['#4ade80','#60a5fa','#f472b6','#fb923c','#a78bfa','#34d399']
-                  // Build time ranges per date
-                  const dateEntries = event.selectedDates?.filter(d =>
+                  const datesAvail = (event.selectedDates || []).filter(d =>
                     (p.availability?.[d] || []).length > 0
-                  ) || []
+                  )
                   return (
-                    <div key={p.id || i} className="border border-slate-100 rounded-xl p-3">
-                      <div className="flex items-center gap-2.5 mb-2">
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
-                          style={{ background: colors[i % colors.length] }}
-                        >
-                          {(p.name || '?')[0].toUpperCase()}
-                        </div>
-                        <div className="font-semibold text-ink text-sm">{p.name}</div>
-                        <span className="w-2 h-2 rounded-full bg-green-400 ml-auto shrink-0" />
+                    <div key={p.id || i} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 mt-0.5"
+                        style={{ background: COLORS[i % COLORS.length] }}
+                      >
+                        {(p.name || '?')[0].toUpperCase()}
                       </div>
-                      {dateEntries.length === 0 ? (
-                        <p className="text-xs text-slate-400 pl-1">No times selected</p>
-                      ) : (
-                        <div className="space-y-1.5 pl-1">
-                          {dateEntries.map(date => {
-                            const slots = [...(p.availability[date] || [])].sort()
-                            // Group into contiguous ranges
-                            const ranges = []
-                            let rangeStart = slots[0]
-                            let prev = slots[0]
-                            for (let j = 1; j < slots.length; j++) {
-                              const [ph, pm] = prev.split(':').map(Number)
-                              const [ch, cm] = slots[j].split(':').map(Number)
-                              if ((ch * 60 + cm) - (ph * 60 + pm) > 30) {
-                                ranges.push({ from: rangeStart, to: prev })
-                                rangeStart = slots[j]
-                              }
-                              prev = slots[j]
-                            }
-                            ranges.push({ from: rangeStart, to: prev })
-                            const dateLabel = parseKey(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                            return (
-                              <div key={date}>
-                                <span className="text-xs font-semibold text-slate-500">{dateLabel}: </span>
-                                <span className="text-xs text-slate-400">
-                                  {ranges.map(r =>
-                                    r.from === r.to ? formatSlot(r.from) : `${formatSlot(r.from)}–${formatSlot(r.to)}`
-                                  ).join(', ')}
-                                </span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-ink text-sm leading-tight">{p.name}</div>
+                        {datesAvail.length === 0 ? (
+                          <p className="text-xs text-slate-300 mt-0.5">No availability submitted</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {datesAvail.map(d => (
+                              <span
+                                key={d}
+                                className="px-1.5 py-0.5 bg-gather-50 text-gather-600 rounded-md text-[10px] font-medium"
+                              >
+                                {parseKey(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )
                 })}
@@ -401,6 +391,7 @@ export default function HostDashboard() {
             </dl>
           </div>
         </div>
+
       </div>
     </div>
   )
