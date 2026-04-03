@@ -3,15 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { useEvent } from '../context/EventContext'
 import { supabase } from '../lib/supabase'
 import NameStep    from '../components/steps/NameStep'
-import TopicStep   from '../components/steps/TopicStep'
 import TypeStep    from '../components/steps/TypeStep'
 import CalendarStep from '../components/steps/CalendarStep'
 import AuthStep    from '../components/steps/AuthStep'
 import InviteStep  from '../components/steps/InviteStep'
 
-const STEPS = ['name', 'topic', 'type', 'calendar', 'auth', 'invite']
-const STEP_LABELS = ['Event', 'Topic', 'Format', 'Dates & Times', 'You', 'Invite']
-const AUTH_STEP = 4
+const STEPS = ['name', 'type', 'calendar', 'auth', 'invite']
+const STEP_LABELS = ['Event', 'Format', 'Dates & Times', 'You', 'Invite']
+const AUTH_STEP = 3
 
 export default function Create() {
   const [currentStep, setCurrentStep] = useState(0)
@@ -43,7 +42,7 @@ export default function Create() {
       const next = currentStep + 1
       const targetStep = (next === AUTH_STEP && loggedInUser) ? next + 1 : next
       // Save event to DB when reaching invite step so the link is real
-      if (targetStep === 5 && !savedEventId) {
+      if (targetStep === 4 && !savedEventId) {
         const id = await saveEventToStorage(event)
         setSavedEventId(id)
       }
@@ -129,14 +128,6 @@ export default function Create() {
           />
         )}
         {currentStep === 1 && (
-          <TopicStep
-            value={event.topic}
-            onChange={v => updateEvent({ topic: v })}
-            onNext={goNext}
-            onBack={goBack}
-          />
-        )}
-        {currentStep === 2 && (
           <TypeStep
             value={event.type}
             onChange={v => updateEvent({ type: v })}
@@ -144,7 +135,7 @@ export default function Create() {
             onBack={goBack}
           />
         )}
-        {currentStep === 3 && (
+        {currentStep === 2 && (
           <CalendarStep
             selectedDates={event.selectedDates}
             timeSlots={event.timeSlots}
@@ -154,7 +145,7 @@ export default function Create() {
             onBack={goBack}
           />
         )}
-        {currentStep === 4 && (
+        {currentStep === 3 && (
           <AuthStep
             user={event.user}
             onChange={u => updateEvent({ user: u })}
@@ -162,7 +153,7 @@ export default function Create() {
             onBack={goBack}
           />
         )}
-        {currentStep === 5 && (
+        {currentStep === 4 && (
           <InviteStep
             event={event}
             eventId={savedEventId}
