@@ -139,8 +139,10 @@ export default function Create() {
           <CalendarStep
             selectedDates={event.selectedDates}
             timeSlots={event.timeSlots}
+            timezone={event.timezone}
             onDatesChange={d => updateEvent({ selectedDates: d })}
             onTimeSlotsChange={t => updateEvent({ timeSlots: t })}
+            onTimezoneChange={tz => updateEvent({ timezone: tz })}
             onNext={goNext}
             onBack={goBack}
           />

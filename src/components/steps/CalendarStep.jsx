@@ -3,15 +3,12 @@ import { useState, useRef, useEffect } from 'react'
 const DAYS   = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
-// Generate time slots from 6:00 AM to 10:45 PM in 15-min increments
+// Generate time slots for the full 24 hours in 15-min increments
 const ALL_SLOTS = (() => {
   const slots = []
-  for (let h = 6; h <= 22; h++) {
-    slots.push(`${String(h).padStart(2,'0')}:00`)
-    slots.push(`${String(h).padStart(2,'0')}:15`)
-    if (h < 22) {
-      slots.push(`${String(h).padStart(2,'0')}:30`)
-      slots.push(`${String(h).padStart(2,'0')}:45`)
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      slots.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`)
     }
   }
   return slots
@@ -105,8 +102,8 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
   useEffect(() => {
     setPendingSlots(new Set(slots))
     if (scrollRef.current) {
-      // 8 AM = (8-6) hours × 4 slots × SLOT_H px
-      scrollRef.current.scrollTop = 2 * 4 * SLOT_H
+      // 8 AM = 8 hours × 4 slots × SLOT_H px
+      scrollRef.current.scrollTop = 8 * 4 * SLOT_H
     }
   }, [date]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -267,19 +264,19 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
               <div className="flex-1">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">End</label>
                 <select
-                  value={rangeEnd > rangeStart ? rangeEnd : ALL_SLOTS.find(s => s > rangeStart) || '23:00'}
+                  value={rangeEnd > rangeStart ? rangeEnd : ALL_SLOTS.find(s => s > rangeStart) || '23:45'}
                   onChange={e => setRangeEnd(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-ink bg-white focus:border-gather-400 outline-none"
                 >
-                  {ALL_SLOTS.filter(s => s > rangeStart).concat(['23:00']).map(s => (
-                    <option key={s} value={s}>{s === '23:00' ? '11:00 PM' : formatSlot(s)}</option>
+                  {ALL_SLOTS.filter(s => s > rangeStart).map(s => (
+                    <option key={s} value={s}>{formatSlot(s)}</option>
                   ))}
                 </select>
               </div>
             </div>
           </div>
           <button
-            onClick={() => { addRange(); setRangeStart(rangeEnd); setRangeEnd(ALL_SLOTS.find(s => s > rangeEnd) || '23:00') }}
+            onClick={() => { addRange(); setRangeStart(rangeEnd); setRangeEnd(ALL_SLOTS.find(s => s > rangeEnd) || '23:45') }}
             disabled={rangeEnd <= rangeStart}
             className="w-full py-2 bg-gather-100 text-gather-700 font-semibold rounded-lg text-sm hover:bg-gather-200 transition-colors disabled:opacity-40"
           >
@@ -409,7 +406,32 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
   )
 }
 
-export default function CalendarStep({ selectedDates, timeSlots, onDatesChange, onTimeSlotsChange, onNext, onBack }) {
+// Common IANA timezone list grouped by region
+const TZ_OPTIONS = [
+  { label: 'Local (auto-detect)', value: '' },
+  { label: '─── Americas ───', value: '', disabled: true },
+  { label: 'Pacific Time (PT)',      value: 'America/Los_Angeles' },
+  { label: 'Mountain Time (MT)',     value: 'America/Denver' },
+  { label: 'Central Time (CT)',      value: 'America/Chicago' },
+  { label: 'Eastern Time (ET)',      value: 'America/New_York' },
+  { label: 'Atlantic Time (AT)',     value: 'America/Halifax' },
+  { label: 'São Paulo (BRT)',        value: 'America/Sao_Paulo' },
+  { label: '─── Europe ───', value: '', disabled: true },
+  { label: 'London (GMT/BST)',       value: 'Europe/London' },
+  { label: 'Paris / Berlin (CET)',   value: 'Europe/Paris' },
+  { label: 'Helsinki (EET)',         value: 'Europe/Helsinki' },
+  { label: 'Moscow (MSK)',           value: 'Europe/Moscow' },
+  { label: '─── Asia / Pacific ───', value: '', disabled: true },
+  { label: 'Dubai (GST)',            value: 'Asia/Dubai' },
+  { label: 'India (IST)',            value: 'Asia/Kolkata' },
+  { label: 'Bangkok (ICT)',          value: 'Asia/Bangkok' },
+  { label: 'Singapore / KL (SGT)',   value: 'Asia/Singapore' },
+  { label: 'Tokyo (JST)',            value: 'Asia/Tokyo' },
+  { label: 'Sydney (AEST)',          value: 'Australia/Sydney' },
+  { label: 'Auckland (NZST)',        value: 'Pacific/Auckland' },
+]
+
+export default function CalendarStep({ selectedDates, timeSlots, timezone, onDatesChange, onTimeSlotsChange, onTimezoneChange, onNext, onBack }) {
   const today = new Date()
   const [year,  setYear]  = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -484,7 +506,26 @@ export default function CalendarStep({ selectedDates, timeSlots, onDatesChange, 
         <h2 className="text-3xl md:text-4xl font-bold text-ink mb-2 leading-tight">
           When might you meet?
         </h2>
-        <p className="text-slate-400 text-sm mb-6">Click and drag to select multiple dates. Then click a date to set times.</p>
+        <p className="text-slate-400 text-sm mb-4">Click and drag to select multiple dates. Then click a date to set times.</p>
+
+        {/* Timezone selector */}
+        <div className="flex items-center gap-2 mb-6">
+          <span className="text-xs font-semibold text-slate-400 shrink-0">Timezone:</span>
+          <select
+            value={timezone || ''}
+            onChange={e => onTimezoneChange(e.target.value || Intl.DateTimeFormat().resolvedOptions().timeZone)}
+            className="flex-1 max-w-xs px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-ink bg-white focus:border-gather-400 outline-none"
+          >
+            {TZ_OPTIONS.map((tz, i) => (
+              <option key={i} value={tz.value} disabled={tz.disabled}>{tz.label}</option>
+            ))}
+          </select>
+          {timezone && (
+            <span className="text-[10px] text-slate-400 shrink-0">
+              {new Date().toLocaleTimeString('en-US', { timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: true })} now
+            </span>
+          )}
+        </div>
 
         {/* Month nav */}
         <div className="flex items-center justify-between mb-4">

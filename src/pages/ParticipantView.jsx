@@ -4,16 +4,66 @@ import { useEvent } from '../context/EventContext'
 
 const ALL_SLOTS = (() => {
   const slots = []
-  for (let h = 6; h <= 22; h++) {
-    slots.push(`${String(h).padStart(2,'0')}:00`)
-    slots.push(`${String(h).padStart(2,'0')}:15`)
-    if (h < 22) {
-      slots.push(`${String(h).padStart(2,'0')}:30`)
-      slots.push(`${String(h).padStart(2,'0')}:45`)
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      slots.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`)
     }
   }
   return slots
 })()
+
+const TZ_OPTIONS = [
+  { label: 'Local (auto-detect)', value: '' },
+  { label: '─── Americas ───', value: '', disabled: true },
+  { label: 'Pacific Time (PT)',      value: 'America/Los_Angeles' },
+  { label: 'Mountain Time (MT)',     value: 'America/Denver' },
+  { label: 'Central Time (CT)',      value: 'America/Chicago' },
+  { label: 'Eastern Time (ET)',      value: 'America/New_York' },
+  { label: 'Atlantic Time (AT)',     value: 'America/Halifax' },
+  { label: 'São Paulo (BRT)',        value: 'America/Sao_Paulo' },
+  { label: '─── Europe ───', value: '', disabled: true },
+  { label: 'London (GMT/BST)',       value: 'Europe/London' },
+  { label: 'Paris / Berlin (CET)',   value: 'Europe/Paris' },
+  { label: 'Helsinki (EET)',         value: 'Europe/Helsinki' },
+  { label: 'Moscow (MSK)',           value: 'Europe/Moscow' },
+  { label: '─── Asia / Pacific ───', value: '', disabled: true },
+  { label: 'Dubai (GST)',            value: 'Asia/Dubai' },
+  { label: 'India (IST)',            value: 'Asia/Kolkata' },
+  { label: 'Bangkok (ICT)',          value: 'Asia/Bangkok' },
+  { label: 'Singapore / KL (SGT)',   value: 'Asia/Singapore' },
+  { label: 'Tokyo (JST)',            value: 'Asia/Tokyo' },
+  { label: 'Sydney (AEST)',          value: 'Australia/Sydney' },
+  { label: 'Auckland (NZST)',        value: 'Pacific/Auckland' },
+]
+
+// Convert a "HH:MM" slot from one IANA timezone to another, returning "HH:MM"
+function convertSlot(slot, fromTz, toTz) {
+  if (!fromTz || !toTz || fromTz === toTz) return slot
+  try {
+    // Use an arbitrary fixed date (doesn't matter which, we only care about time offset)
+    const [h, m] = slot.split(':').map(Number)
+    const dateStr = `2000-01-15T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`
+    // Parse as if in fromTz
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: fromTz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    }).formatToParts(new Date(dateStr))
+    // Build a UTC date from the fromTz reading
+    const get = (type) => parts.find(p => p.type === type)?.value
+    const utcDate = new Date(Date.UTC(
+      parseInt(get('year')), parseInt(get('month')) - 1, parseInt(get('day')),
+      parseInt(get('hour')), parseInt(get('minute')), 0
+    ))
+    // Now format in toTz
+    const converted = new Intl.DateTimeFormat('en-US', {
+      timeZone: toTz, hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(utcDate)
+    return converted.replace(',', '').trim()
+  } catch {
+    return slot
+  }
+}
 
 function formatSlot(slot) {
   const [h, m] = slot.split(':').map(Number)
@@ -100,7 +150,18 @@ function getBlocks(slots) {
   return blocks
 }
 
-function TimePanel({ date, slots, hostSlots, onChange, onClose }) {
+function TimePanel({ date, slots, hostSlots, onChange, onClose, hostTz, viewTz }) {
+  // Convert a slot label from hostTz to viewTz for display
+  const displaySlot = (slot) => {
+    if (!hostTz || !viewTz || hostTz === viewTz) return formatSlot(slot)
+    const converted = convertSlot(slot, hostTz, viewTz)
+    return formatSlot(converted)
+  }
+  const displayHour = (slot) => {
+    if (!hostTz || !viewTz || hostTz === viewTz) return formatHour(slot)
+    const converted = convertSlot(slot, hostTz, viewTz)
+    return formatHour(converted)
+  }
   const AVAILABLE = ALL_SLOTS
 
   const [mode, setMode]             = useState('range')
@@ -108,8 +169,8 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose }) {
   const [hoverIdx, setHoverIdx]     = useState(null)
   const [dragStart, setDragStart]   = useState(null)
   const [dragMode, setDragMode]     = useState('add')
-  const [rangeStart, setRangeStart] = useState(AVAILABLE[0] || '09:00')
-  const [rangeEnd, setRangeEnd]     = useState(AVAILABLE.find(s => s > (AVAILABLE[0] || '09:00')) || '17:00')
+  const [rangeStart, setRangeStart] = useState('09:00')
+  const [rangeEnd, setRangeEnd]     = useState('17:00')
   const dragging  = useRef(false)
   const scrollRef = useRef(null)
 
@@ -118,8 +179,8 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose }) {
 
   useEffect(() => {
     if (scrollRef.current) {
-      const eightAMIdx = AVAILABLE.findIndex(s => s >= '08:00')
-      scrollRef.current.scrollTop = Math.max(0, eightAMIdx) * SLOT_H
+      // Scroll to 8 AM = 8 hours × 4 slots
+      scrollRef.current.scrollTop = 8 * 4 * SLOT_H
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -245,7 +306,7 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose }) {
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-ink bg-white focus:border-gather-400 outline-none"
                 >
                   {AVAILABLE.map(s => (
-                    <option key={s} value={s}>{formatSlot(s)}</option>
+                    <option key={s} value={s}>{displaySlot(s)}</option>
                   ))}
                 </select>
               </div>
@@ -257,7 +318,7 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose }) {
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-ink bg-white focus:border-gather-400 outline-none"
                 >
                   {AVAILABLE.filter(s => s > rangeStart).map(s => (
-                    <option key={s} value={s}>{formatSlot(s)}</option>
+                    <option key={s} value={s}>{displaySlot(s)}</option>
                   ))}
                 </select>
               </div>
@@ -267,7 +328,7 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose }) {
             onClick={() => {
               addRange()
               setRangeStart(rangeEnd)
-              setRangeEnd(AVAILABLE.find(s => s > rangeEnd) || AVAILABLE[AVAILABLE.length - 1])
+              setRangeEnd(AVAILABLE.find(s => s > rangeEnd) || '23:45')
             }}
             disabled={rangeEnd <= rangeStart}
             className="w-full py-2 bg-gather-100 text-gather-700 font-semibold rounded-lg text-sm hover:bg-gather-200 transition-colors disabled:opacity-40"
@@ -357,7 +418,7 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose }) {
                   <div className="w-14 shrink-0 flex items-center justify-end pr-2 pointer-events-none">
                     {isHourMark && (
                       <span className="text-[10px] text-slate-400 font-medium leading-none -mt-[1px]">
-                        {formatHour(slot)}
+                        {displayHour(slot)}
                       </span>
                     )}
                     {isHalfMark && (
@@ -402,6 +463,7 @@ export default function ParticipantView() {
   const [availability, setAvail]    = useState({})
   const [activeDate, setActiveDate] = useState(null)
   const [submitted, setSubmitted]   = useState(false)
+  const [viewTz, setViewTz]         = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
 
   useEffect(() => {
     loadEventFromStorage(id)
@@ -653,14 +715,31 @@ export default function ParticipantView() {
           <div className="flex gap-6 items-start animate-fade-in">
             {/* Calendar */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-ink">Hi {name}! When are you free?</h2>
-                  <p className="text-slate-400 text-sm mt-1">Click any proposed date to mark your availability.</p>
-                  {event.timezone && (
-                    <p className="text-xs text-slate-400 mt-1">
-                      Times shown in <span className="font-medium">{event.timezone}</span>
-                    </p>
+              <div className="mb-4">
+                <h2 className="text-2xl font-bold text-ink">Hi {name}! When are you free?</h2>
+                <p className="text-slate-400 text-sm mt-1">Click any proposed date to mark your availability.</p>
+
+                {/* Timezone sync row */}
+                <div className="flex flex-wrap items-center gap-2 mt-3 p-3 bg-white border border-slate-100 rounded-xl">
+                  {event.timezone && event.timezone !== viewTz && (
+                    <span className="text-xs text-slate-500">
+                      Host: <span className="font-medium">{event.timezone}</span>
+                    </span>
+                  )}
+                  <span className="text-xs font-semibold text-slate-400 shrink-0">Your timezone:</span>
+                  <select
+                    value={viewTz}
+                    onChange={e => setViewTz(e.target.value || Intl.DateTimeFormat().resolvedOptions().timeZone)}
+                    className="flex-1 min-w-0 max-w-xs px-2 py-1 border border-slate-200 rounded-lg text-xs text-ink bg-white focus:border-gather-400 outline-none"
+                  >
+                    {TZ_OPTIONS.map((tz, i) => (
+                      <option key={i} value={tz.value} disabled={tz.disabled}>{tz.label}</option>
+                    ))}
+                  </select>
+                  {event.timezone && event.timezone !== viewTz && (
+                    <span className="text-[10px] text-gather-600 bg-gather-50 px-2 py-0.5 rounded-full shrink-0">
+                      Times converted
+                    </span>
                   )}
                 </div>
               </div>
@@ -725,6 +804,8 @@ export default function ParticipantView() {
                   hostSlots={event.timeSlots?.[activeDate] || []}
                   onChange={handleTimeChange}
                   onClose={() => setActiveDate(null)}
+                  hostTz={event.timezone}
+                  viewTz={viewTz}
                 />
               </div>
             )}
