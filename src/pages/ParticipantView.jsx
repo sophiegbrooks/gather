@@ -73,7 +73,7 @@ function formatRange({ start, end }) {
 const SLOT_H = 14
 
 function TimePanel({ date, slots, hostSlots, onChange, onClose }) {
-  const AVAILABLE = hostSlots.length > 0 ? hostSlots : ALL_SLOTS
+  const AVAILABLE = ALL_SLOTS
 
   const [mode, setMode]             = useState('range')
   const [pending, setPending]       = useState(new Set(slots))
@@ -502,7 +502,7 @@ export default function ParticipantView() {
                     >
                       <div className="font-semibold text-ink text-sm">{label}</div>
                       <div className="text-xs text-slate-400 mt-1">
-                        {hostSlots.length} slots available
+                        Click to mark your availability
                       </div>
                       {mySlots.length > 0 ? (
                         <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-gather-100 text-gather-700 text-xs font-semibold rounded-full">
