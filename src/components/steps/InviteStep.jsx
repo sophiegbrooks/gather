@@ -98,7 +98,7 @@ export default function InviteStep({ event, eventId, onFinish, onBack }) {
       {/* Email invites */}
       <div className="mb-8">
         <label className="block text-sm font-semibold text-slate-600 mb-2">
-          Invite by email <span className="text-slate-300 font-normal">(optional)</span>
+          Invite by email <span className="text-slate-600 font-normal">(optional)</span>
         </label>
         <textarea
           value={emails}

@@ -43,7 +43,7 @@ export default function TopicStep({ value, onChange, onNext, onBack }) {
         <h2 className="text-4xl md:text-5xl font-bold text-ink leading-tight">
           What's this meeting about?
         </h2>
-        <span className="mt-3 px-2 py-1 bg-slate-100 text-slate-400 text-xs rounded-full font-medium shrink-0">
+        <span className="mt-3 px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full font-medium shrink-0">
           optional
         </span>
       </div>
