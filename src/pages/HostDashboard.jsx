@@ -46,10 +46,10 @@ function getBlocks(slots) {
 // Returns a green color interpolated from near-white (pct=0) to deep green (pct=1)
 function heatColor(pct) {
   if (pct <= 0) return '#f1f5f9' // slate-100 for zero
-  // Interpolate from light green (#bbf7d0, green-200) to deep green (#15803d, green-700)
-  const r = Math.round(187 + (21  - 187) * pct)
-  const g = Math.round(247 + (128 - 247) * pct)
-  const b = Math.round(208 + (61  - 208) * pct)
+  // Interpolate from light orange (#fed7aa, orange-200) to deep orange (#c2410c, orange-700)
+  const r = Math.round(254 + (194 - 254) * pct)
+  const g = Math.round(215 + (65  - 215) * pct)
+  const b = Math.round(170 + (12  - 170) * pct)
   return `rgb(${r},${g},${b})`
 }
 
@@ -133,7 +133,7 @@ export default function HostDashboard() {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-gather-400 animate-pulse" />
               <span className="text-sm text-slate-500">Live</span>
             </div>
             <button
@@ -221,7 +221,7 @@ export default function HostDashboard() {
               <button
                 onClick={handleCopy}
                 className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all shrink-0 ${
-                  copied ? 'bg-green-400 text-white' : 'bg-gather-500 text-white hover:bg-gather-400'
+                  copied ? 'bg-gather-400 text-white' : 'bg-gather-500 text-white hover:bg-gather-400'
                 }`}
               >
                 {copied ? '✓ Copied!' : 'Copy link'}
@@ -323,7 +323,7 @@ export default function HostDashboard() {
                             {blocks.map((block, bi) => {
                               const isBestBlock = `${date}|${bi}` === bestBlockKey && bestCount > 0
                               return (
-                                <div key={bi} className={`flex flex-col gap-px ${isBestBlock ? 'ring-2 ring-green-500 ring-offset-1 rounded-sm' : ''}`}>
+                                <div key={bi} className={`flex flex-col gap-px ${isBestBlock ? 'ring-2 ring-gather-500 ring-offset-1 rounded-sm' : ''}`}>
                                   {block.map(slot => {
                                     const isHour = slot.endsWith(':00')
                                     const selectedP = selectedPId ? participants.find(p => p.id === selectedPId) : null
