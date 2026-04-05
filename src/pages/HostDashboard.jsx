@@ -191,15 +191,28 @@ export default function HostDashboard() {
                 <h2 className="font-bold text-white text-base">Invite friends</h2>
                 <p className="text-gather-200 text-xs mt-0.5">Share the link so they can submit availability</p>
               </div>
-              <a
-                href={`mailto:?subject=${encodeURIComponent(`You're invited: ${event.name}`)}&body=${encodeURIComponent(`Hi!\n\nYou've been invited to share your availability for "${event.name}".\n\nClick the link below to pick your times — no sign-up needed:\n${inviteLink}\n\nThanks!`)}`}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-gather-700 text-sm font-semibold rounded-xl hover:bg-gather-50 transition-colors shrink-0"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                Email invite
-              </a>
+              <div className="flex gap-2 shrink-0">
+                <a
+                  href={`mailto:?subject=${encodeURIComponent(`You're invited: ${event.name}`)}&body=${encodeURIComponent(`Hi!\n\nYou've been invited to share your availability for "${event.name}".\n\nClick the link below to pick your times — no sign-up needed:\n${inviteLink}\n\nThanks!`)}`}
+                  className="flex items-center gap-2 px-4 py-2 bg-white text-gather-700 text-sm font-semibold rounded-xl hover:bg-gather-50 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Email
+                </a>
+                {typeof navigator !== 'undefined' && navigator.share && (
+                  <button
+                    onClick={() => navigator.share({ title: event.name, text: `You're invited to "${event.name}"! Pick your availability here:`, url: inviteLink })}
+                    className="flex items-center gap-2 px-4 py-2 bg-white text-gather-700 text-sm font-semibold rounded-xl hover:bg-gather-50 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                    </svg>
+                    Share
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex gap-2">
               <div className="flex-1 px-3 py-2.5 bg-gather-700/50 rounded-xl text-xs text-gather-100 font-mono truncate">
@@ -366,6 +379,37 @@ export default function HostDashboard() {
         {/* ── Right column ── */}
         <div className="space-y-6">
 
+          {/* Event details */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-6">
+            <h2 className="font-bold text-ink mb-4">Event details</h2>
+            <dl className="space-y-3 text-sm">
+              <div>
+                <dt className="text-slate-400">Name</dt>
+                <dd className="font-semibold text-ink mt-0.5">{event.name}</dd>
+              </div>
+              {event.topic && (
+                <div>
+                  <dt className="text-slate-400">Topic</dt>
+                  <dd className="font-semibold text-ink mt-0.5">{event.topic}</dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-slate-400">Format</dt>
+                <dd className="font-semibold text-ink mt-0.5 capitalize">{event.type}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">Hosted by</dt>
+                <dd className="font-semibold text-ink mt-0.5">{event.user?.name || 'Guest'}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-400">Created</dt>
+                <dd className="font-semibold text-ink mt-0.5">
+                  {event.createdAt ? new Date(event.createdAt).toLocaleDateString() : '—'}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
           {/* Participants */}
           <div className="bg-white rounded-2xl border border-slate-100 p-6">
             <div className="flex items-center justify-between mb-4">
@@ -375,7 +419,7 @@ export default function HostDashboard() {
 
             {participants.length === 0 ? (
               <div className="py-6 text-center">
-                <p className="text-slate-400 text-sm">No responses yet.<br />Share the link below.</p>
+                <p className="text-slate-400 text-sm">No responses yet.<br />Share the link above.</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-50">
@@ -425,75 +469,6 @@ export default function HostDashboard() {
                 })}
               </div>
             )}
-
-            {/* Invite link + share actions */}
-            <div className="mt-5 pt-4 border-t border-slate-50">
-              <p className="text-xs text-slate-400 mb-2">Invite link</p>
-              <div className="flex gap-2 mb-3">
-                <div className="flex-1 px-3 py-2 bg-slate-50 rounded-lg text-xs text-slate-400 font-mono truncate">
-                  {inviteLink}
-                </div>
-                <button
-                  onClick={handleCopy}
-                  className="px-3 py-2 bg-gather-50 text-gather-700 text-xs font-semibold rounded-lg hover:bg-gather-100 transition-colors"
-                >
-                  {copied ? '✓' : 'Copy'}
-                </button>
-              </div>
-              <div className="flex gap-2">
-                <a
-                  href={`mailto:?subject=${encodeURIComponent(`You're invited: ${event.name}`)}&body=${encodeURIComponent(`Hi!\n\nYou've been invited to share your availability for "${event.name}".\n\nClick the link below to pick your times — no sign-up needed:\n${inviteLink}\n\nThanks!`)}`}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg transition-colors"
-                >
-                  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  Email
-                </a>
-{typeof navigator !== 'undefined' && navigator.share && (
-                  <button
-                    onClick={() => navigator.share({ title: event.name, text: `You're invited to "${event.name}"! Pick your availability here:`, url: inviteLink })}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg transition-colors"
-                  >
-                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                    </svg>
-                    Share
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Event details */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-6">
-            <h2 className="font-bold text-ink mb-4">Event details</h2>
-            <dl className="space-y-3 text-sm">
-              <div>
-                <dt className="text-slate-400">Name</dt>
-                <dd className="font-semibold text-ink mt-0.5">{event.name}</dd>
-              </div>
-              {event.topic && (
-                <div>
-                  <dt className="text-slate-400">Topic</dt>
-                  <dd className="font-semibold text-ink mt-0.5">{event.topic}</dd>
-                </div>
-              )}
-              <div>
-                <dt className="text-slate-400">Format</dt>
-                <dd className="font-semibold text-ink mt-0.5 capitalize">{event.type}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-400">Hosted by</dt>
-                <dd className="font-semibold text-ink mt-0.5">{event.user?.name || 'Guest'}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-400">Created</dt>
-                <dd className="font-semibold text-ink mt-0.5">
-                  {event.createdAt ? new Date(event.createdAt).toLocaleDateString() : '—'}
-                </dd>
-              </div>
-            </dl>
           </div>
         </div>
 
