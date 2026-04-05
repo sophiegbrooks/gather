@@ -40,26 +40,26 @@ const TZ_OPTIONS = [
 function convertSlot(slot, fromTz, toTz) {
   if (!fromTz || !toTz || fromTz === toTz) return slot
   try {
-    // Use an arbitrary fixed date (doesn't matter which, we only care about time offset)
     const [h, m] = slot.split(':').map(Number)
-    const dateStr = `2000-01-15T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`
-    // Parse as if in fromTz
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: fromTz,
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-    }).formatToParts(new Date(dateStr))
-    // Build a UTC date from the fromTz reading
-    const get = (type) => parts.find(p => p.type === type)?.value
-    const utcDate = new Date(Date.UTC(
-      parseInt(get('year')), parseInt(get('month')) - 1, parseInt(get('day')),
-      parseInt(get('hour')), parseInt(get('minute')), 0
-    ))
-    // Now format in toTz
-    const converted = new Intl.DateTimeFormat('en-US', {
+    // Start with a UTC reference date at the same clock numbers as the slot
+    const utcRef = new Date(Date.UTC(2000, 0, 15, h, m, 0))
+    // See what fromTz clock shows for that UTC moment
+    const fromParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: fromTz, hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(utcRef)
+    const fromH = parseInt(fromParts.find(p => p.type === 'hour').value)
+    const fromM = parseInt(fromParts.find(p => p.type === 'minute').value)
+    // Calculate how many minutes we need to shift to make fromTz show h:m
+    let diffMinutes = (h * 60 + m) - (fromH * 60 + fromM)
+    if (diffMinutes > 720)  diffMinutes -= 1440
+    if (diffMinutes < -720) diffMinutes += 1440
+    // Shift the reference to get the true UTC moment where fromTz reads h:m
+    const trueUtc = new Date(utcRef.getTime() + diffMinutes * 60 * 1000)
+    // Format that UTC moment in toTz
+    const result = new Intl.DateTimeFormat('en-US', {
       timeZone: toTz, hour: '2-digit', minute: '2-digit', hour12: false,
-    }).format(utcDate)
-    return converted.replace(',', '').trim()
+    }).format(trueUtc)
+    return result.replace(',', '').trim()
   } catch {
     return slot
   }
