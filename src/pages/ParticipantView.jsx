@@ -125,9 +125,9 @@ const SLOT_H = 14
 // Heatmap helpers (mirrored from HostDashboard)
 function heatColor(pct) {
   if (pct <= 0) return '#f1f5f9'
-  const r = Math.round(253 + (184 - 253) * pct)
-  const g = Math.round(217 + (85  - 217) * pct)
-  const b = Math.round(188 + (48  - 188) * pct)
+  const r = Math.round(187 + (21  - 187) * pct)
+  const g = Math.round(247 + (128 - 247) * pct)
+  const b = Math.round(208 + (61  - 208) * pct)
   return `rgb(${r},${g},${b})`
 }
 
@@ -505,7 +505,7 @@ export default function ParticipantView() {
               <h1 className="font-semibold text-ink">{event.name}</h1>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gather-400 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               <span className="text-sm text-slate-500">Live</span>
             </div>
           </div>
