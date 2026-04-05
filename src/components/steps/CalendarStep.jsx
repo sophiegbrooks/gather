@@ -506,7 +506,7 @@ export default function CalendarStep({ selectedDates, timeSlots, timezone, onDat
         <h2 className="text-3xl md:text-4xl font-bold text-ink mb-2 leading-tight">
           When might you meet?
         </h2>
-        <p className="text-slate-400 text-sm mb-4">Click and drag to select multiple dates. Then click a date to set times.</p>
+        <p className="text-slate-400 text-sm mb-4">Select your dates, then click a date to view and confirm time slots.</p>
 
         {/* Timezone selector */}
         <div className="flex items-center gap-2 mb-6">
