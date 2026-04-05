@@ -184,6 +184,38 @@ export default function HostDashboard() {
             ))}
           </div>
 
+          {/* Invite friends */}
+          <div className="bg-gather-600 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="font-bold text-white text-base">Invite friends</h2>
+                <p className="text-gather-200 text-xs mt-0.5">Share the link so they can submit availability</p>
+              </div>
+              <a
+                href={`mailto:?subject=${encodeURIComponent(`You're invited: ${event.name}`)}&body=${encodeURIComponent(`Hi!\n\nYou've been invited to share your availability for "${event.name}".\n\nClick the link below to pick your times — no sign-up needed:\n${inviteLink}\n\nThanks!`)}`}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-gather-700 text-sm font-semibold rounded-xl hover:bg-gather-50 transition-colors shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Email invite
+              </a>
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1 px-3 py-2.5 bg-gather-700/50 rounded-xl text-xs text-gather-100 font-mono truncate">
+                {inviteLink}
+              </div>
+              <button
+                onClick={handleCopy}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all shrink-0 ${
+                  copied ? 'bg-green-400 text-white' : 'bg-gather-500 text-white hover:bg-gather-400'
+                }`}
+              >
+                {copied ? '✓ Copied!' : 'Copy link'}
+              </button>
+            </div>
+          </div>
+
           {/* Availability heatmap */}
           <div className="bg-white rounded-2xl border border-slate-100 p-6">
             <div className="flex items-center justify-between mb-1">
