@@ -6,10 +6,8 @@ import NameStep    from '../components/steps/NameStep'
 import TypeStep    from '../components/steps/TypeStep'
 import CalendarStep from '../components/steps/CalendarStep'
 import AuthStep    from '../components/steps/AuthStep'
-import InviteStep  from '../components/steps/InviteStep'
 
-const STEPS = ['name', 'type', 'calendar', 'auth', 'invite']
-const STEP_LABELS = ['Event', 'Format', 'Dates & Times', 'You', 'Invite']
+const STEPS = ['name', 'type', 'calendar', 'auth']
 const AUTH_STEP = 3
 
 export default function Create() {
@@ -37,16 +35,14 @@ export default function Create() {
 
   const goNext = () => {
     if (animating) return
+    // If already logged in and about to hit auth step, skip straight to finish
+    if (currentStep + 1 === AUTH_STEP && loggedInUser) {
+      handleFinish()
+      return
+    }
     setAnimating(true)
-    setTimeout(async () => {
-      const next = currentStep + 1
-      const targetStep = (next === AUTH_STEP && loggedInUser) ? next + 1 : next
-      // Save event to DB when reaching invite step so the link is real
-      if (targetStep === 4 && !savedEventId) {
-        const id = await saveEventToStorage(event)
-        setSavedEventId(id)
-      }
-      setCurrentStep(targetStep)
+    setTimeout(() => {
+      setCurrentStep(s => s + 1)
       setAnimating(false)
     }, 200)
   }
@@ -55,18 +51,12 @@ export default function Create() {
     if (animating || currentStep === 0) return
     setAnimating(true)
     setTimeout(() => {
-      setCurrentStep(s => {
-        const prev = s - 1
-        // Skip auth step going backwards if already logged in
-        if (prev === AUTH_STEP && loggedInUser) return prev - 1
-        return prev
-      })
+      setCurrentStep(s => s - 1)
       setAnimating(false)
     }, 200)
   }
 
   const handleFinish = async () => {
-    // Event was already saved when entering InviteStep; just navigate
     const id = savedEventId || await saveEventToStorage(event)
     navigate(`/event/${id}/dashboard`)
   }
@@ -153,14 +143,7 @@ export default function Create() {
             onChange={u => updateEvent({ user: u })}
             onNext={goNext}
             onBack={goBack}
-          />
-        )}
-        {currentStep === 4 && (
-          <InviteStep
-            event={event}
-            eventId={savedEventId}
             onFinish={handleFinish}
-            onBack={goBack}
           />
         )}
       </main>

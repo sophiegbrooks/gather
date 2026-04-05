@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
-export default function AuthStep({ user, onChange, onNext, onBack }) {
+export default function AuthStep({ user, onChange, onNext, onBack, onFinish }) {
   const [mode, setMode]       = useState('guest')   // 'guest' | 'signup' | 'login'
   const [name, setName]       = useState(user?.name  || '')
   const [email, setEmail]     = useState(user?.email || '')
@@ -16,7 +16,7 @@ export default function AuthStep({ user, onChange, onNext, onBack }) {
   const handleGuest = () => {
     if (!name.trim()) return
     onChange({ name: name.trim(), email: email.trim() || null, isGuest: true })
-    onNext()
+    onFinish()
   }
 
   // ── Sign Up ─────────────────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ export default function AuthStep({ user, onChange, onNext, onBack }) {
       setError(authError.message)
     } else {
       onChange({ name: name.trim(), email: email.trim(), isGuest: false, id: data?.user?.id })
-      onNext()
+      onFinish()
     }
   }
 
@@ -76,7 +76,7 @@ export default function AuthStep({ user, onChange, onNext, onBack }) {
     return (
       <div className="w-full max-w-lg step-enter flex flex-col items-center text-center">
         <div className="w-16 h-16 bg-gather-100 rounded-2xl flex items-center justify-center text-3xl mb-5">📬</div>
-        <p className="text-gather-600 text-sm font-semibold uppercase tracking-widest mb-3">5 → Almost there</p>
+        <p className="text-gather-600 text-sm font-semibold uppercase tracking-widest mb-3">4 → Almost there</p>
         <h2 className="text-4xl font-bold text-ink mb-3 leading-tight">Check your inbox</h2>
         <p className="text-slate-400 mb-1">We sent a confirmation link to</p>
         <p className="font-bold text-gather-600 text-lg mb-5">{email}</p>
@@ -103,7 +103,7 @@ export default function AuthStep({ user, onChange, onNext, onBack }) {
   return (
     <div className="w-full max-w-lg step-enter">
       <p className="text-gather-600 text-sm font-semibold uppercase tracking-widest mb-4">
-        5 → Almost there
+        4 → Almost there
       </p>
       <h2 className="text-4xl md:text-5xl font-bold text-ink mb-3 leading-tight">Who are you?</h2>
       <p className="text-slate-400 mb-8">Continue as a guest or create a free account.</p>
@@ -261,7 +261,7 @@ export default function AuthStep({ user, onChange, onNext, onBack }) {
             disabled={!isGuestValid}
             className="px-6 py-3 bg-gather-600 text-white font-semibold rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gather-700 transition-all shadow-md shadow-gather-100"
           >
-            Continue as guest →
+            Launch event 🚀
           </button>
         )}
 
@@ -271,7 +271,7 @@ export default function AuthStep({ user, onChange, onNext, onBack }) {
             disabled={!isSignUpValid || loading}
             className="px-6 py-3 bg-gather-600 text-white font-semibold rounded-xl disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gather-700 transition-all shadow-md shadow-gather-100 flex items-center gap-2"
           >
-            {loading ? <><Spinner />Creating…</> : 'Create account →'}
+            {loading ? <><Spinner />Creating…</> : 'Create account & launch 🚀'}
           </button>
         )}
 

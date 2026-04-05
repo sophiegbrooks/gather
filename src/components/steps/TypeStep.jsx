@@ -19,7 +19,7 @@ export default function TypeStep({ value, onChange, onNext, onBack }) {
   return (
     <div className="w-full max-w-2xl step-enter">
       <p className="text-gather-600 text-sm font-semibold uppercase tracking-widest mb-4">
-        3 → Meeting Format
+        2 → Meeting Format
       </p>
       <h2 className="text-4xl md:text-5xl font-bold text-ink mb-10 leading-tight">
         Who's joining?

@@ -501,7 +501,7 @@ export default function CalendarStep({ selectedDates, timeSlots, timezone, onDat
       {/* Left: calendar */}
       <div className="flex-1 min-w-0">
         <p className="text-gather-600 text-sm font-semibold uppercase tracking-widest mb-4">
-          4 → Dates &amp; Times
+          3 → Dates &amp; Times
         </p>
         <h2 className="text-3xl md:text-4xl font-bold text-ink mb-2 leading-tight">
           When might you meet?
