@@ -405,54 +405,6 @@ export default function HostDashboard() {
               </div>
             )}
           </div>
-          {/* Best times panel */}
-          {participants.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-100 p-6">
-              <h2 className="font-bold text-ink mb-1">Best times</h2>
-              <p className="text-xs text-slate-400 mb-4">
-                {topBlocks.length === 0
-                  ? 'No overlap found yet — waiting for more responses.'
-                  : 'Top slots ranked by how many people are free.'}
-              </p>
-              {topBlocks.length === 0 ? (
-                <p className="text-sm text-slate-300 italic text-center py-3">No overlap yet</p>
-              ) : (
-                <div className="space-y-3">
-                  {topBlocks.map(({ date, block, count, names }, i) => {
-                    const medals  = ['🥇', '🥈', '🥉']
-                    const dateObj = parseKey(date)
-                    const dateLabel = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-                    const timeLabel = formatBlockRange(block)
-                    const pct = participants.length > 0 ? count / participants.length : 0
-                    const barW = Math.round(pct * 100)
-                    return (
-                      <div key={`${date}-${i}`} className="flex items-start gap-3">
-                        <span className="text-xl leading-none mt-0.5">{medals[i]}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-baseline justify-between gap-2 mb-1">
-                            <div>
-                              <span className="text-sm font-semibold text-ink">{dateLabel}</span>
-                              <span className="text-xs text-slate-400 ml-2">{timeLabel}</span>
-                            </div>
-                            <span className="text-xs font-bold text-gather-700 shrink-0">
-                              {count}/{participants.length}
-                            </span>
-                          </div>
-                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all duration-500"
-                              style={{ width: `${barW}%`, background: heatColor(pct) }}
-                            />
-                          </div>
-                          <p className="text-[10px] text-slate-400 mt-1 truncate">{names.join(', ')}</p>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* ── Right column ── */}
@@ -549,6 +501,55 @@ export default function HostDashboard() {
               </div>
             )}
           </div>
+
+          {/* Best times panel */}
+          {participants.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-100 p-6">
+              <h2 className="font-bold text-ink mb-1">Best times</h2>
+              <p className="text-xs text-slate-400 mb-4">
+                {topBlocks.length === 0
+                  ? 'No overlap found yet — waiting for more responses.'
+                  : 'Top slots ranked by how many people are free.'}
+              </p>
+              {topBlocks.length === 0 ? (
+                <p className="text-sm text-slate-300 italic text-center py-3">No overlap yet</p>
+              ) : (
+                <div className="space-y-3">
+                  {topBlocks.map(({ date, block, count, names }, i) => {
+                    const medals  = ['🥇', '🥈', '🥉']
+                    const dateObj = parseKey(date)
+                    const dateLabel = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                    const timeLabel = formatBlockRange(block)
+                    const pct = participants.length > 0 ? count / participants.length : 0
+                    const barW = Math.round(pct * 100)
+                    return (
+                      <div key={`${date}-${i}`} className="flex items-start gap-3">
+                        <span className="text-xl leading-none mt-0.5">{medals[i]}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline justify-between gap-2 mb-1">
+                            <div>
+                              <span className="text-sm font-semibold text-ink">{dateLabel}</span>
+                              <span className="text-xs text-slate-400 ml-2">{timeLabel}</span>
+                            </div>
+                            <span className="text-xs font-bold text-gather-700 shrink-0">
+                              {count}/{participants.length}
+                            </span>
+                          </div>
+                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{ width: `${barW}%`, background: heatColor(pct) }}
+                            />
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-1 truncate">{names.join(', ')}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
       </div>
