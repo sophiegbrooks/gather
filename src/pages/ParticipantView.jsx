@@ -125,9 +125,9 @@ const SLOT_H = 14
 // Heatmap helpers (mirrored from HostDashboard)
 function heatColor(pct) {
   if (pct <= 0) return '#f1f5f9'
-  const r = Math.round(200 + (61  - 200) * pct)
-  const g = Math.round(217 + (90  - 217) * pct)
-  const b = Math.round(196 + (56  - 196) * pct)
+  const r = Math.round(187 + (21  - 187) * pct)
+  const g = Math.round(247 + (128 - 247) * pct)
+  const b = Math.round(208 + (61  - 208) * pct)
   return `rgb(${r},${g},${b})`
 }
 
