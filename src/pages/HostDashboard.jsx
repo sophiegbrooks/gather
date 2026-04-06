@@ -321,7 +321,7 @@ export default function HostDashboard() {
                         ) : (
                           <div className="flex flex-col gap-px w-28">
                             {blocks.map((block, bi) => {
-                              const isBestBlock = `${date}|${bi}` === bestBlockKey && bestCount > 0
+                              const isBestBlock = `${date}|${bi}` === bestBlockKey
                               return (
                                 <div key={bi} className={`flex flex-col gap-px ${isBestBlock ? 'ring-2 ring-green-500 ring-offset-1 rounded-sm' : ''}`}>
                                   {block.map(slot => {
