@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 const DAYS   = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -183,22 +183,15 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
   const [dragMode, setDragMode]         = useState('add')
   const [rangeStart, setRangeStart]     = useState('09:00')
   const [rangeEnd, setRangeEnd]         = useState('17:00')
-  const dragging    = useRef(false)
-  const scrollRef   = useRef(null)
-  const liveRange   = useRef({ start: '09:00', end: '17:00' })
+  const dragging  = useRef(false)
+  const scrollRef = useRef(null)
 
   const dateObj = parseKey(date)
   const label   = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
   // Re-sync slots + scroll to 8 AM whenever the date changes
-  // Also auto-apply the default 9am–5pm range if the day has no slots yet
   useEffect(() => {
-    const initial = new Set(slots)
-    if (slots.length === 0) {
-      slotsInRange('09:00', '17:00').forEach(s => initial.add(s))
-    }
-    setPendingSlots(initial)
-    liveRange.current = { start: '09:00', end: '17:00' }
+    setPendingSlots(new Set(slots))
     setRangeStart('09:00')
     setRangeEnd('17:00')
     if (scrollRef.current) {
@@ -234,18 +227,6 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
     return () => window.removeEventListener('mouseup', up)
   }, [])
 
-  // Live-update slots when rangeStart/rangeEnd changes — replace the previous live range
-  useEffect(() => {
-    const prev = liveRange.current
-    setPendingSlots(prevSlots => {
-      const next = new Set(prevSlots)
-      slotsInRange(prev.start, prev.end).forEach(s => next.delete(s))
-      next.delete(prev.end) // remove end cap if present
-      slotsInRange(rangeStart, rangeEnd).forEach(s => next.add(s))
-      return next
-    })
-    liveRange.current = { start: rangeStart, end: rangeEnd }
-  }, [rangeStart, rangeEnd]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── derived display values ─────────────────────────────────────────────────
   const ranges = getSelectedRanges(pendingSlots)
@@ -382,10 +363,8 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
           </div>
           <button
             onClick={() => {
-              // Lock in current live range, then start a fresh range after it
-              liveRange.current = { start: rangeEnd, end: rangeEnd }
-              const nextEnd = ALL_SLOTS.find(s => s > rangeEnd) ?
-                ALL_SLOTS[Math.min(ALL_SLOTS.indexOf(rangeEnd) + 8, ALL_SLOTS.length - 1)] : '23:45'
+              addRange()
+              const nextEnd = ALL_SLOTS[Math.min(ALL_SLOTS.indexOf(rangeEnd) + 8, ALL_SLOTS.length - 1)] || '23:45'
               setRangeStart(rangeEnd)
               setRangeEnd(nextEnd)
             }}
@@ -396,12 +375,7 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
           </button>
           {ranges.length > 0 && (
             <button
-              onClick={() => {
-                setPendingSlots(new Set())
-                liveRange.current = { start: '09:00', end: '17:00' }
-                setRangeStart('09:00')
-                setRangeEnd('17:00')
-              }}
+              onClick={() => setPendingSlots(new Set())}
               className="w-full py-1.5 text-xs text-slate-400 hover:text-red-400 transition-colors"
             >
               Clear all
