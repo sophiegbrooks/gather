@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 const DAYS   = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -70,6 +70,97 @@ function formatRange({ start, end }) {
   return sAp === eAp
     ? `${s.slice(0, -3)} – ${e}`   // "1:00 – 3:15 PM"
     : `${s} – ${e}`
+}
+
+// ── Parses typed time strings like "9am", "9:30", "14:00", "2:30pm" ─────────
+function parseTypedTime(raw) {
+  const s = raw.trim().toLowerCase().replace(/\s/g, '')
+  if (!s) return null
+  // Match patterns: 9, 9am, 9:30, 9:30am, 14, 14:30
+  const m = s.match(/^(\d{1,2})(?::(\d{2}))?([ap]m?)?$/)
+  if (!m) return null
+  let h = parseInt(m[1])
+  const min = m[2] ? parseInt(m[2]) : 0
+  const ampm = m[3]
+  if (ampm === 'pm' || ampm === 'p') { if (h !== 12) h += 12 }
+  else if (ampm === 'am' || ampm === 'a') { if (h === 12) h = 0 }
+  else if (h < 7) h += 12  // assume PM for ambiguous times like "2" or "3:30"
+  if (h < 0 || h > 23 || min < 0 || min > 59) return null
+  // Snap to nearest 15-min slot
+  const snapped = Math.round(min / 15) * 15
+  const finalH = snapped === 60 ? h + 1 : h
+  const finalM = snapped === 60 ? 0 : snapped
+  if (finalH > 23) return null
+  return `${String(finalH).padStart(2,'0')}:${String(finalM).padStart(2,'0')}`
+}
+
+// ── Typeable time input with dropdown suggestions ─────────────────────────────
+function TimeInput({ value, onChange, placeholder, filterAfter }) {
+  const [text, setText]       = useState(formatSlot(value))
+  const [open, setOpen]       = useState(false)
+  const [focused, setFocused] = useState(false)
+  const containerRef          = useRef(null)
+
+  // Keep display text in sync when value changes externally
+  useEffect(() => { if (!focused) setText(formatSlot(value)) }, [value, focused])
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = e => { if (!containerRef.current?.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const suggestions = ALL_SLOTS.filter(s => {
+    if (filterAfter && s <= filterAfter) return false
+    if (!text || text === formatSlot(value)) return true
+    const parsed = parseTypedTime(text)
+    // Show slots around typed value
+    return formatSlot(s).toLowerCase().includes(text.toLowerCase()) ||
+      (parsed && s >= parsed)
+  }).slice(0, 12)
+
+  const commit = (raw) => {
+    const slot = parseTypedTime(raw)
+    if (slot && ALL_SLOTS.includes(slot) && (!filterAfter || slot > filterAfter)) {
+      onChange(slot)
+      setText(formatSlot(slot))
+    } else {
+      setText(formatSlot(value)) // revert
+    }
+    setOpen(false)
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        type="text"
+        value={text}
+        placeholder={placeholder}
+        onFocus={() => { setFocused(true); setText(''); setOpen(true) }}
+        onBlur={() => { setFocused(false); commit(text) }}
+        onChange={e => { setText(e.target.value); setOpen(true) }}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { commit(text); e.target.blur() }
+          if (e.key === 'Escape') { setText(formatSlot(value)); setOpen(false); e.target.blur() }
+        }}
+        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-ink bg-white focus:border-gather-400 outline-none"
+      />
+      {open && suggestions.length > 0 && (
+        <ul className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg max-h-44 overflow-y-auto">
+          {suggestions.map(s => (
+            <li
+              key={s}
+              onMouseDown={e => { e.preventDefault(); onChange(s); setText(formatSlot(s)); setOpen(false) }}
+              className={`px-3 py-1.5 text-sm cursor-pointer hover:bg-gather-50 hover:text-gather-700 ${s === value ? 'bg-gather-50 text-gather-700 font-semibold' : 'text-ink'}`}
+            >
+              {formatSlot(s)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 // ── Time panel for a single day ──────────────────────────────────────────────
@@ -251,27 +342,20 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
             <div className="flex gap-2 items-end">
               <div className="flex-1">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Start</label>
-                <select
+                <TimeInput
                   value={rangeStart}
-                  onChange={e => setRangeStart(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-ink bg-white focus:border-gather-400 outline-none"
-                >
-                  {ALL_SLOTS.map(s => (
-                    <option key={s} value={s}>{formatSlot(s)}</option>
-                  ))}
-                </select>
+                  onChange={v => { setRangeStart(v); if (rangeEnd <= v) setRangeEnd(ALL_SLOTS.find(s => s > v) || '23:45') }}
+                  placeholder="e.g. 9am"
+                />
               </div>
               <div className="flex-1">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">End</label>
-                <select
+                <TimeInput
                   value={rangeEnd > rangeStart ? rangeEnd : ALL_SLOTS.find(s => s > rangeStart) || '23:45'}
-                  onChange={e => setRangeEnd(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-ink bg-white focus:border-gather-400 outline-none"
-                >
-                  {ALL_SLOTS.filter(s => s > rangeStart).map(s => (
-                    <option key={s} value={s}>{formatSlot(s)}</option>
-                  ))}
-                </select>
+                  onChange={v => setRangeEnd(v)}
+                  placeholder="e.g. 5pm"
+                  filterAfter={rangeStart}
+                />
               </div>
             </div>
           </div>
