@@ -181,8 +181,8 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
   const [hoverIdx, setHoverIdx]         = useState(null)
   const [dragStart, setDragStart]       = useState(null)
   const [dragMode, setDragMode]         = useState('add')
-  const [rangeStart, setRangeStart]     = useState('09:00')
-  const [rangeEnd, setRangeEnd]         = useState('17:00')
+  const [rangeStart, setRangeStart]     = useState('')
+  const [rangeEnd, setRangeEnd]         = useState('')
   const dragging  = useRef(false)
   const scrollRef = useRef(null)
 
@@ -192,8 +192,8 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
   // Re-sync slots + scroll to 8 AM whenever the date changes
   useEffect(() => {
     setPendingSlots(new Set(slots))
-    setRangeStart('09:00')
-    setRangeEnd('17:00')
+    setRangeStart('')
+    setRangeEnd('')
     if (scrollRef.current) {
       scrollRef.current.scrollTop = 8 * 4 * SLOT_H
     }
@@ -232,11 +232,20 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
   const ranges = getSelectedRanges(pendingSlots)
 
   // ── save helpers ───────────────────────────────────────────────────────────
-  const save = () => onChange(date, [...pendingSlots].sort())
+  // Always include whatever is currently in the pickers when saving
+  const buildFinalSlots = () => {
+    const final = new Set(pendingSlots)
+    if (rangeStart && rangeEnd) slotsInRange(rangeStart, rangeEnd).forEach(s => final.add(s))
+    return [...final].sort()
+  }
 
-  const saveAndClose    = () => { save(); onClose() }
-  const saveAndNext     = () => { save(); onNextDay() }
-  const saveAndPrev     = () => { save(); onPrevDay() }
+  const saveAndClose = () => { onChange(date, buildFinalSlots()); onClose() }
+  const saveAndNext  = () => { onChange(date, buildFinalSlots()); onNextDay() }
+  const saveAndPrev  = () => { onChange(date, buildFinalSlots()); onPrevDay() }
+
+  // Count of time frames including the current picker if it forms a valid range
+  const currentPickerValid = rangeStart && rangeEnd && rangeEnd > rangeStart
+  const totalFrames = ranges.length + (currentPickerValid ? 1 : 0)
 
   // ── presets ────────────────────────────────────────────────────────────────
   const PRESETS = [
@@ -264,7 +273,7 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
         <div>
           <h3 className="font-bold text-ink text-base leading-tight">{label}</h3>
           <p className="text-xs text-slate-400 mt-0.5">
-            {ranges.length > 0 ? `${ranges.length} time frame${ranges.length !== 1 ? 's' : ''} selected` : 'Select your available times'}
+            {totalFrames > 0 ? `${totalFrames} time frame${totalFrames !== 1 ? 's' : ''} selected` : 'Select your available times'}
           </p>
         </div>
         <button
@@ -346,14 +355,14 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Start</label>
                 <TimeInput
                   value={rangeStart}
-                  onChange={v => { setRangeStart(v); if (rangeEnd <= v) setRangeEnd(ALL_SLOTS.find(s => s > v) || '23:45') }}
+                  onChange={v => { setRangeStart(v); if (v && rangeEnd && rangeEnd <= v) setRangeEnd(ALL_SLOTS.find(s => s > v) || '23:45') }}
                   placeholder="e.g. 9am"
                 />
               </div>
               <div className="flex-1">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">End</label>
                 <TimeInput
-                  value={rangeEnd > rangeStart ? rangeEnd : ALL_SLOTS.find(s => s > rangeStart) || '23:45'}
+                  value={rangeEnd}
                   onChange={v => setRangeEnd(v)}
                   placeholder="e.g. 5pm"
                   filterAfter={rangeStart}
@@ -364,11 +373,11 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
           <button
             onClick={() => {
               addRange()
-              const nextEnd = ALL_SLOTS[Math.min(ALL_SLOTS.indexOf(rangeEnd) + 8, ALL_SLOTS.length - 1)] || '23:45'
-              setRangeStart(rangeEnd)
+              const nextEnd = rangeEnd ? (ALL_SLOTS[Math.min(ALL_SLOTS.indexOf(rangeEnd) + 8, ALL_SLOTS.length - 1)] || '23:45') : ''
+              setRangeStart(rangeEnd || '')
               setRangeEnd(nextEnd)
             }}
-            disabled={rangeEnd <= rangeStart}
+            disabled={!currentPickerValid}
             className="w-full py-2 bg-gather-100 text-gather-700 font-semibold rounded-lg text-sm hover:bg-gather-200 transition-colors disabled:opacity-40"
           >
             + Add another time slot
@@ -490,7 +499,7 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
           onClick={saveAndClose}
           className="w-full py-3 bg-gather-600 text-white font-semibold rounded-xl hover:bg-gather-700 transition-all shadow-md shadow-gather-100 text-sm"
         >
-          {ranges.length > 0 ? `Save ${ranges.length} time frame${ranges.length !== 1 ? 's' : ''} for this day ✓` : 'Save (no times) ✓'}
+          {totalFrames > 0 ? `Save ${totalFrames} time frame${totalFrames !== 1 ? 's' : ''} for this day ✓` : 'Save (no times) ✓'}
         </button>
       </div>
     </div>
