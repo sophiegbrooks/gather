@@ -109,7 +109,7 @@ export default function Create() {
       </div>
 
       {/* Step content */}
-      <main className={`flex-1 flex flex-col items-center justify-center px-4 py-8 transition-opacity duration-200 ${animating ? 'opacity-0' : 'opacity-100'}`}>
+      <main className={`flex-1 flex flex-col items-center justify-center px-4 ${currentStep === 2 ? 'py-3' : 'py-8'} transition-opacity duration-200 ${animating ? 'opacity-0' : 'opacity-100'}`}>
         {currentStep === 0 && (
           <NameStep
             value={event.name}

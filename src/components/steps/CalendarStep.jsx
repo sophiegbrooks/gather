@@ -500,16 +500,16 @@ export default function CalendarStep({ selectedDates, timeSlots, timezone, onDat
     <div className="w-full max-w-5xl step-enter flex gap-6 items-start">
       {/* Left: calendar */}
       <div className="flex-1 min-w-0">
-        <p className="text-gather-600 text-sm font-semibold uppercase tracking-widest mb-4">
+        <p className="text-gather-600 text-sm font-semibold uppercase tracking-widest mb-2">
           3 → Dates &amp; Times
         </p>
-        <h2 className="text-3xl md:text-4xl font-bold text-ink mb-2 leading-tight">
+        <h2 className="text-2xl md:text-3xl font-bold text-ink mb-1 leading-tight">
           When might you meet?
         </h2>
-        <p className="text-slate-400 text-sm mb-4">Select your dates, then click a date to view and confirm time slots.</p>
+        <p className="text-slate-400 text-sm mb-3">Select your dates, then click a date to view and confirm time slots.</p>
 
         {/* Timezone selector */}
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center gap-2 mb-3">
           <span className="text-xs font-semibold text-slate-400 shrink-0">Timezone:</span>
           <select
             value={timezone || ''}
@@ -528,20 +528,20 @@ export default function CalendarStep({ selectedDates, timeSlots, timezone, onDat
         </div>
 
         {/* Month nav */}
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={prevMonth} className="w-9 h-9 rounded-xl border border-slate-200 hover:border-gather-300 flex items-center justify-center text-slate-500 hover:text-gather-600 transition-colors">
+        <div className="flex items-center justify-between mb-2">
+          <button onClick={prevMonth} className="w-8 h-8 rounded-xl border border-slate-200 hover:border-gather-300 flex items-center justify-center text-slate-500 hover:text-gather-600 transition-colors">
             ‹
           </button>
-          <span className="font-bold text-ink text-lg">{MONTHS[month]} {year}</span>
-          <button onClick={nextMonth} className="w-9 h-9 rounded-xl border border-slate-200 hover:border-gather-300 flex items-center justify-center text-slate-500 hover:text-gather-600 transition-colors">
+          <span className="font-bold text-ink text-base">{MONTHS[month]} {year}</span>
+          <button onClick={nextMonth} className="w-8 h-8 rounded-xl border border-slate-200 hover:border-gather-300 flex items-center justify-center text-slate-500 hover:text-gather-600 transition-colors">
             ›
           </button>
         </div>
 
         {/* Day headers */}
-        <div className="grid grid-cols-7 mb-2">
+        <div className="grid grid-cols-7 mb-1">
           {DAYS.map(d => (
-            <div key={d} className="text-center text-xs font-semibold text-slate-400 uppercase py-1">{d}</div>
+            <div key={d} className="text-center text-xs font-semibold text-slate-400 uppercase py-0.5">{d}</div>
           ))}
         </div>
 
@@ -561,7 +561,7 @@ export default function CalendarStep({ selectedDates, timeSlots, timezone, onDat
                 onMouseEnter={() => handleMouseEnter(day)}
                 onClick={() => !past && selected && setActiveDay(activeDay === key ? null : key)}
                 className={`
-                  relative aspect-square rounded-xl flex flex-col items-center justify-center text-sm font-semibold cursor-pointer transition-all
+                  relative h-8 rounded-xl flex flex-col items-center justify-center text-sm font-semibold cursor-pointer transition-all
                   ${past ? 'text-slate-200 cursor-not-allowed' : ''}
                   ${!past && !selected ? 'text-slate-600 hover:bg-gather-50 hover:text-gather-700' : ''}
                   ${selected ? 'bg-gather-500 text-white shadow-md shadow-gather-200 scale-95' : ''}
@@ -580,7 +580,7 @@ export default function CalendarStep({ selectedDates, timeSlots, timezone, onDat
 
         {/* Selected dates list */}
         {selectedDates.length > 0 && (
-          <div className="mt-5">
+          <div className="mt-3">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
               {selectedDates.length} date{selectedDates.length !== 1 ? 's' : ''} selected — click a date to set times
             </p>
@@ -608,7 +608,7 @@ export default function CalendarStep({ selectedDates, timeSlots, timezone, onDat
           </div>
         )}
 
-        <div className="flex items-center justify-between mt-8">
+        <div className="flex items-center justify-between mt-4">
           <button onClick={onBack} className="text-slate-400 hover:text-slate-600 transition-colors text-sm font-medium">
             ← Back
           </button>
@@ -628,7 +628,7 @@ export default function CalendarStep({ selectedDates, timeSlots, timezone, onDat
         const hasPrev = activeDayIdx > 0
         const hasNext = activeDayIdx < selectedDates.length - 1
         return (
-          <div className="w-80 shrink-0 bg-white rounded-2xl border border-slate-100 shadow-xl p-5 h-[580px] flex flex-col animate-panel-in">
+          <div className="w-80 shrink-0 bg-white rounded-2xl border border-slate-100 shadow-xl p-5 h-[520px] flex flex-col animate-panel-in">
             <TimePanel
               date={activeDay}
               slots={timeSlots[activeDay] || []}
