@@ -183,17 +183,25 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
   const [dragMode, setDragMode]         = useState('add')
   const [rangeStart, setRangeStart]     = useState('09:00')
   const [rangeEnd, setRangeEnd]         = useState('17:00')
-  const dragging  = useRef(false)
-  const scrollRef = useRef(null)
+  const dragging    = useRef(false)
+  const scrollRef   = useRef(null)
+  const liveRange   = useRef({ start: '09:00', end: '17:00' })
 
   const dateObj = parseKey(date)
   const label   = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
   // Re-sync slots + scroll to 8 AM whenever the date changes
+  // Also auto-apply the default 9am–5pm range if the day has no slots yet
   useEffect(() => {
-    setPendingSlots(new Set(slots))
+    const initial = new Set(slots)
+    if (slots.length === 0) {
+      slotsInRange('09:00', '17:00').forEach(s => initial.add(s))
+    }
+    setPendingSlots(initial)
+    liveRange.current = { start: '09:00', end: '17:00' }
+    setRangeStart('09:00')
+    setRangeEnd('17:00')
     if (scrollRef.current) {
-      // 8 AM = 8 hours × 4 slots × SLOT_H px
       scrollRef.current.scrollTop = 8 * 4 * SLOT_H
     }
   }, [date]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -225,6 +233,19 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
     window.addEventListener('mouseup', up)
     return () => window.removeEventListener('mouseup', up)
   }, [])
+
+  // Live-update slots when rangeStart/rangeEnd changes — replace the previous live range
+  useEffect(() => {
+    const prev = liveRange.current
+    setPendingSlots(prevSlots => {
+      const next = new Set(prevSlots)
+      slotsInRange(prev.start, prev.end).forEach(s => next.delete(s))
+      next.delete(prev.end) // remove end cap if present
+      slotsInRange(rangeStart, rangeEnd).forEach(s => next.add(s))
+      return next
+    })
+    liveRange.current = { start: rangeStart, end: rangeEnd }
+  }, [rangeStart, rangeEnd]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── derived display values ─────────────────────────────────────────────────
   const ranges = getSelectedRanges(pendingSlots)
@@ -334,10 +355,10 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
             </div>
           )}
 
-          {/* New range pickers */}
+          {/* Current range editor */}
           <div>
             <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-2">
-              {ranges.length > 0 ? 'Add another slot' : 'Select a time slot'}
+              {ranges.length > 1 ? 'Edit latest slot' : 'Time slot'}
             </p>
             <div className="flex gap-2 items-end">
               <div className="flex-1">
@@ -360,15 +381,27 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
             </div>
           </div>
           <button
-            onClick={() => { addRange(); setRangeStart(rangeEnd); setRangeEnd(ALL_SLOTS.find(s => s > rangeEnd) || '23:45') }}
+            onClick={() => {
+              // Lock in current live range, then start a fresh range after it
+              liveRange.current = { start: rangeEnd, end: rangeEnd }
+              const nextEnd = ALL_SLOTS.find(s => s > rangeEnd) ?
+                ALL_SLOTS[Math.min(ALL_SLOTS.indexOf(rangeEnd) + 8, ALL_SLOTS.length - 1)] : '23:45'
+              setRangeStart(rangeEnd)
+              setRangeEnd(nextEnd)
+            }}
             disabled={rangeEnd <= rangeStart}
             className="w-full py-2 bg-gather-100 text-gather-700 font-semibold rounded-lg text-sm hover:bg-gather-200 transition-colors disabled:opacity-40"
           >
-            + Add this slot
+            + Add another time slot
           </button>
           {ranges.length > 0 && (
             <button
-              onClick={() => setPendingSlots(new Set())}
+              onClick={() => {
+                setPendingSlots(new Set())
+                liveRange.current = { start: '09:00', end: '17:00' }
+                setRangeStart('09:00')
+                setRangeEnd('17:00')
+              }}
               className="w-full py-1.5 text-xs text-slate-400 hover:text-red-400 transition-colors"
             >
               Clear all
