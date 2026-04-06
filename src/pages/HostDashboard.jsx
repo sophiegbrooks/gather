@@ -46,10 +46,10 @@ function getBlocks(slots) {
 // Returns a green color interpolated from near-white (pct=0) to deep green (pct=1)
 function heatColor(pct) {
   if (pct <= 0) return '#f1f5f9' // slate-100 for zero
-  // Interpolate from light green (#bbf7d0, green-200) to deep green (#15803d, green-700)
-  const r = Math.round(187 + (21  - 187) * pct)
-  const g = Math.round(247 + (128 - 247) * pct)
-  const b = Math.round(208 + (61  - 208) * pct)
+  // Interpolate from light sage (#c8d9c4) to deep sage (#3d5a38)
+  const r = Math.round(200 + (61  - 200) * pct)
+  const g = Math.round(217 + (90  - 217) * pct)
+  const b = Math.round(196 + (56  - 196) * pct)
   return `rgb(${r},${g},${b})`
 }
 
