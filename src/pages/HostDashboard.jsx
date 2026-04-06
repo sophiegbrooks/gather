@@ -90,20 +90,51 @@ export default function HostDashboard() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Rank all time blocks by participant overlap (for best-block highlight + best times panel)
-  const rankedBlocks = []
+  // bestBlockKey: for heatmap ring highlight — uses host blocks with numeric bi
+  let bestBlockKey = null
+  let _bestCount   = 0
   ;(event.selectedDates || []).forEach(date => {
     const slots = [...(event.timeSlots?.[date] || [])].sort()
     getBlocks(slots).forEach((block, bi) => {
-      const availablePs = participants.filter(p =>
+      const count = participants.filter(p =>
         block.some(s => (p.availability?.[date] || []).includes(s))
-      )
-      rankedBlocks.push({ date, block, bi, count: availablePs.length, names: availablePs.map(p => p.name) })
+      ).length
+      if (count > _bestCount) { _bestCount = count; bestBlockKey = `${date}|${bi}` }
     })
   })
+
+  // topBlocks: slot-by-slot peak windows for the Best Times panel
+  const rankedBlocks = []
+  ;(event.selectedDates || []).forEach(date => {
+    const hostSlots = [...(event.timeSlots?.[date] || [])].sort()
+    if (!hostSlots.length || !participants.length) return
+
+    // Count participants free at each individual slot
+    const counts = Object.fromEntries(
+      hostSlots.map(slot => [
+        slot,
+        participants.filter(p => (p.availability?.[date] || []).includes(slot)).length
+      ])
+    )
+
+    const maxCount = Math.max(0, ...Object.values(counts))
+    if (maxCount === 0) return
+
+    // Walk from highest overlap down, collecting contiguous peak windows
+    const processed = new Set()
+    for (let threshold = maxCount; threshold >= 1; threshold--) {
+      const peakSlots = hostSlots.filter(s => counts[s] >= threshold && !processed.has(s))
+      getBlocks(peakSlots).forEach(block => {
+        const names = participants
+          .filter(p => block.every(s => (p.availability?.[date] || []).includes(s)))
+          .map(p => p.name)
+        block.forEach(s => processed.add(s))
+        rankedBlocks.push({ date, block, count: threshold, names })
+      })
+    }
+  })
   rankedBlocks.sort((a, b) => b.count - a.count || a.date.localeCompare(b.date))
-  const bestBlockKey = rankedBlocks[0]?.count > 0 ? `${rankedBlocks[0].date}|${rankedBlocks[0].bi}` : null
-  const topBlocks    = rankedBlocks.filter(b => b.count > 0).slice(0, 3)
+  const topBlocks = rankedBlocks.filter(b => b.count > 0).slice(0, 3)
 
   if (!event.id) {
     return (
