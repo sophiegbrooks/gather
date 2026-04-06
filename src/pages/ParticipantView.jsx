@@ -66,10 +66,102 @@ function convertSlot(slot, fromTz, toTz) {
 }
 
 function formatSlot(slot) {
+  if (!slot) return ''
   const [h, m] = slot.split(':').map(Number)
   const ampm = h < 12 ? 'AM' : 'PM'
   const hour = h === 0 ? 12 : h > 12 ? h - 12 : h
   return `${hour}:${String(m).padStart(2,'0')} ${ampm}`
+}
+
+function parseTypedTime(raw) {
+  if (!raw) return null
+  const s = raw.trim().toLowerCase().replace(/\s+/g, '')
+  // e.g. "14:30", "9:00"
+  let m = s.match(/^(\d{1,2}):(\d{2})(am|pm)?$/)
+  if (m) {
+    let h = parseInt(m[1]), min = parseInt(m[2])
+    if (m[3] === 'pm' && h < 12) h += 12
+    if (m[3] === 'am' && h === 12) h = 0
+    if (h < 0 || h > 23 || min < 0 || min > 59) return null
+    const rounded = Math.round(min / 15) * 15
+    return `${String(h).padStart(2,'0')}:${String(rounded === 60 ? 0 : rounded).padStart(2,'0')}`
+  }
+  // e.g. "9am", "2pm", "14"
+  m = s.match(/^(\d{1,2})(am|pm)?$/)
+  if (m) {
+    let h = parseInt(m[1])
+    if (m[2] === 'pm' && h < 12) h += 12
+    if (m[2] === 'am' && h === 12) h = 0
+    if (!m[2] && h < 8) h += 12 // ambiguous: treat 1-7 as PM
+    if (h < 0 || h > 23) return null
+    return `${String(h).padStart(2,'0')}:00`
+  }
+  return null
+}
+
+function TimeInput({ value, onChange, placeholder, filterAfter }) {
+  const [text, setText]       = useState(formatSlot(value))
+  const [open, setOpen]       = useState(false)
+  const [focused, setFocused] = useState(false)
+  const containerRef          = useRef(null)
+
+  useEffect(() => { if (!focused) setText(formatSlot(value)) }, [value, focused])
+
+  useEffect(() => {
+    const handler = e => { if (!containerRef.current?.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const suggestions = ALL_SLOTS.filter(s => {
+    if (filterAfter && s <= filterAfter) return false
+    if (!text || text === formatSlot(value)) return true
+    const parsed = parseTypedTime(text)
+    return formatSlot(s).toLowerCase().includes(text.toLowerCase()) ||
+      (parsed && s >= parsed)
+  }).slice(0, 12)
+
+  const commit = (raw) => {
+    const slot = parseTypedTime(raw)
+    if (slot && ALL_SLOTS.includes(slot) && (!filterAfter || slot > filterAfter)) {
+      onChange(slot)
+      setText(formatSlot(slot))
+    } else {
+      setText(formatSlot(value))
+    }
+    setOpen(false)
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        type="text"
+        value={text}
+        placeholder={placeholder}
+        onFocus={() => { setFocused(true); setText(''); setOpen(true) }}
+        onBlur={() => { setFocused(false); commit(text) }}
+        onChange={e => { setText(e.target.value); setOpen(true) }}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { commit(text); e.target.blur() }
+          if (e.key === 'Escape') { setText(formatSlot(value)); setOpen(false); e.target.blur() }
+        }}
+        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-ink bg-white focus:border-gather-400 outline-none"
+      />
+      {open && suggestions.length > 0 && (
+        <ul className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg max-h-44 overflow-y-auto">
+          {suggestions.map(s => (
+            <li
+              key={s}
+              onMouseDown={e => { e.preventDefault(); onChange(s); setText(formatSlot(s)); setOpen(false) }}
+              className={`px-3 py-1.5 text-sm cursor-pointer hover:bg-gather-50 hover:text-gather-700 ${s === value ? 'bg-gather-50 text-gather-700 font-semibold' : 'text-ink'}`}
+            >
+              {formatSlot(s)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 function formatHour(slot) {
@@ -169,8 +261,8 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose, hostTz, viewTz }
   const [hoverIdx, setHoverIdx]     = useState(null)
   const [dragStart, setDragStart]   = useState(null)
   const [dragMode, setDragMode]     = useState('add')
-  const [rangeStart, setRangeStart] = useState('09:00')
-  const [rangeEnd, setRangeEnd]     = useState('17:00')
+  const [rangeStart, setRangeStart] = useState('')
+  const [rangeEnd, setRangeEnd]     = useState('')
   const dragging  = useRef(false)
   const scrollRef = useRef(null)
 
@@ -213,6 +305,15 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose, hostTz, viewTz }
 
   const ranges = getSelectedRanges(pending, AVAILABLE)
 
+  const buildFinalSlots = () => {
+    const final = new Set(pending)
+    if (rangeStart && rangeEnd) slotsInRange(rangeStart, rangeEnd, AVAILABLE).forEach(s => final.add(s))
+    return [...final].sort()
+  }
+
+  const currentPickerValid = rangeStart && rangeEnd && rangeEnd > rangeStart
+  const totalFrames = ranges.length + (currentPickerValid ? 1 : 0)
+
   const addRange = () => {
     const toAdd = slotsInRange(rangeStart, rangeEnd, AVAILABLE)
     if (toAdd.length === 0) return
@@ -231,7 +332,7 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose, hostTz, viewTz }
   ]
 
   const confirm = () => {
-    onChange(date, [...pending].sort())
+    onChange(date, buildFinalSlots())
     onClose()
   }
 
@@ -242,8 +343,8 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose, hostTz, viewTz }
         <div>
           <h3 className="font-bold text-ink text-base leading-tight">{label}</h3>
           <p className="text-xs text-slate-400 mt-0.5">
-            {ranges.length > 0
-              ? `${ranges.length} time frame${ranges.length !== 1 ? 's' : ''} selected`
+            {totalFrames > 0
+              ? `${totalFrames} time frame${totalFrames !== 1 ? 's' : ''} selected`
               : 'Select your available times'}
           </p>
         </div>
@@ -300,40 +401,34 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose, hostTz, viewTz }
             <div className="flex gap-2 items-end">
               <div className="flex-1">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Start</label>
-                <select
+                <TimeInput
                   value={rangeStart}
-                  onChange={e => setRangeStart(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-ink bg-white focus:border-gather-400 outline-none"
-                >
-                  {AVAILABLE.map(s => (
-                    <option key={s} value={s}>{displaySlot(s)}</option>
-                  ))}
-                </select>
+                  onChange={v => { setRangeStart(v); if (v && rangeEnd && rangeEnd <= v) setRangeEnd(ALL_SLOTS.find(s => s > v) || '23:45') }}
+                  placeholder="e.g. 9am"
+                />
               </div>
               <div className="flex-1">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">End</label>
-                <select
-                  value={rangeEnd > rangeStart ? rangeEnd : AVAILABLE.find(s => s > rangeStart) || AVAILABLE[AVAILABLE.length - 1]}
-                  onChange={e => setRangeEnd(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-ink bg-white focus:border-gather-400 outline-none"
-                >
-                  {AVAILABLE.filter(s => s > rangeStart).map(s => (
-                    <option key={s} value={s}>{displaySlot(s)}</option>
-                  ))}
-                </select>
+                <TimeInput
+                  value={rangeEnd}
+                  onChange={v => setRangeEnd(v)}
+                  placeholder="e.g. 5pm"
+                  filterAfter={rangeStart}
+                />
               </div>
             </div>
           </div>
           <button
             onClick={() => {
               addRange()
-              setRangeStart(rangeEnd)
-              setRangeEnd(AVAILABLE.find(s => s > rangeEnd) || '23:45')
+              const nextEnd = rangeEnd ? (ALL_SLOTS[Math.min(ALL_SLOTS.indexOf(rangeEnd) + 8, ALL_SLOTS.length - 1)] || '23:45') : ''
+              setRangeStart(rangeEnd || '')
+              setRangeEnd(nextEnd)
             }}
-            disabled={rangeEnd <= rangeStart}
+            disabled={!currentPickerValid}
             className="w-full py-2 bg-gather-100 text-gather-700 font-semibold rounded-lg text-sm hover:bg-gather-200 transition-colors disabled:opacity-40"
           >
-            + Add this slot
+            + Add another time slot
           </button>
           {ranges.length > 0 && (
             <button
@@ -445,8 +540,8 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose, hostTz, viewTz }
         onClick={confirm}
         className="mt-4 shrink-0 w-full py-3 bg-gather-600 text-white font-semibold rounded-xl hover:bg-gather-700 transition-all shadow-md shadow-gather-100 text-sm"
       >
-        {ranges.length > 0
-          ? `Save ${ranges.length} time frame${ranges.length !== 1 ? 's' : ''} ✓`
+        {totalFrames > 0
+          ? `Save ${totalFrames} time frame${totalFrames !== 1 ? 's' : ''} ✓`
           : 'Save (no times) ✓'}
       </button>
     </div>
