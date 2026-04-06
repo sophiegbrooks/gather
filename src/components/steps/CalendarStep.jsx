@@ -22,6 +22,7 @@ function formatHour(slot) {
 }
 
 function formatSlot(slot) {
+  if (!slot) return ''
   const [h, m] = slot.split(':').map(Number)
   const ampm = h < 12 ? 'AM' : 'PM'
   const hour = h === 0 ? 12 : h > 12 ? h - 12 : h
