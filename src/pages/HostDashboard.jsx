@@ -431,19 +431,19 @@ export default function HostDashboard() {
                                 const isHalf    = slot.endsWith(':30')
                                 const isQuarter = slot.endsWith(':15') || slot.endsWith(':45')
                                 return (
-                                  <div key={slot} className="h-8 relative flex items-start justify-end pr-1">
-                                    {/* Tick line at the top of the cell extending toward heat columns */}
+                                  <div key={slot} className="h-8 relative">
+                                    {/* Tick line at the top of the cell */}
                                     {isHour    && <div className="absolute inset-x-0 top-0 h-px bg-slate-400" />}
                                     {isHalf    && <div className="absolute right-0 top-0 w-3 h-px bg-slate-300" />}
                                     {isQuarter && <div className="absolute right-0 top-0 w-2 h-px bg-slate-200" />}
-                                    {/* Label sits just below the line */}
+                                    {/* Label floats above the line */}
                                     {isHour && (
-                                      <span className="text-[10px] text-slate-500 whitespace-nowrap leading-none font-medium mt-1">
+                                      <span className="absolute right-1 text-[10px] text-slate-500 whitespace-nowrap leading-none font-medium" style={{ top: 0, transform: 'translateY(-100%)' }}>
                                         {formatSlot(slot)}
                                       </span>
                                     )}
                                     {isHalf && (
-                                      <span className="text-[9px] text-slate-300 whitespace-nowrap leading-none mt-1">
+                                      <span className="absolute right-1 text-[9px] text-slate-300 whitespace-nowrap leading-none" style={{ top: 0, transform: 'translateY(-100%)' }}>
                                         :30
                                       </span>
                                     )}
