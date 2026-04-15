@@ -69,6 +69,7 @@ export default function HostDashboard() {
   const { event, loadEventFromStorage } = useEvent()
   const [copied, setCopied]             = useState(false)
   const [copiedResults, setCopiedResults] = useState(false)
+  const [resultsDropdown, setResultsDropdown] = useState(false)
   const [authUser, setAuthUser]         = useState(undefined)
   const [selectedPId, setSelectedPId]   = useState(null)
 
@@ -95,6 +96,7 @@ export default function HostDashboard() {
   const handleCopyResults = () => {
     navigator.clipboard.writeText(resultsLink)
     setCopiedResults(true)
+    setResultsDropdown(false)
     setTimeout(() => setCopiedResults(false), 2000)
   }
 
@@ -183,14 +185,42 @@ export default function HostDashboard() {
             >
               {copied ? '✓ Link copied!' : 'Share invite'}
             </button>
-            <button
-              onClick={handleCopyResults}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                copiedResults ? 'bg-gather-500 text-white' : 'bg-gather-50 text-gather-700 hover:bg-gather-100'
-              }`}
-            >
-              {copiedResults ? '✓ Copied!' : 'Share results'}
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setResultsDropdown(v => !v)}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  copiedResults ? 'bg-gather-500 text-white' : 'bg-gather-50 text-gather-700 hover:bg-gather-100'
+                }`}
+              >
+                {copiedResults ? '✓ Copied!' : 'Share results'}
+              </button>
+              {resultsDropdown && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setResultsDropdown(false)} />
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-lg border border-slate-100 py-1.5 z-20">
+                    <button
+                      onClick={handleCopyResults}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-ink hover:bg-slate-50 transition-colors"
+                    >
+                      <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Copy link
+                    </button>
+                    <a
+                      href={`mailto:?subject=${encodeURIComponent(`Results: ${event.name}`)}&body=${encodeURIComponent(`Here are the live results for "${event.name}":\n\n${resultsLink}`)}`}
+                      onClick={() => setResultsDropdown(false)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-ink hover:bg-slate-50 transition-colors"
+                    >
+                      <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      Send via email
+                    </a>
+                  </div>
+                </>
+              )}
+            </div>
             {authUser ? (
               <button
                 onClick={() => navigate('/profile')}
