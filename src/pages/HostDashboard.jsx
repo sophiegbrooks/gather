@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEvent } from '../context/EventContext'
 import { supabase } from '../lib/supabase'
+import CalendarStep from '../components/steps/CalendarStep'
 
 const COLORS = ['#4ade80','#60a5fa','#f472b6','#fb923c','#a78bfa','#34d399']
 
@@ -66,12 +67,17 @@ function formatBlockRange(block) {
 export default function HostDashboard() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { event, loadEventFromStorage } = useEvent()
-  const [copied, setCopied]             = useState(false)
+  const { event, loadEventFromStorage, updateEventTiming } = useEvent()
+  const [copied, setCopied]               = useState(false)
   const [copiedResults, setCopiedResults] = useState(false)
   const [resultsDropdown, setResultsDropdown] = useState(false)
-  const [authUser, setAuthUser]         = useState(undefined)
-  const [selectedPId, setSelectedPId]   = useState(null)
+  const [authUser, setAuthUser]           = useState(undefined)
+  const [selectedPId, setSelectedPId]     = useState(null)
+  const [editOpen, setEditOpen]           = useState(false)
+  const [editDates, setEditDates]         = useState([])
+  const [editSlots, setEditSlots]         = useState({})
+  const [editTimezone, setEditTimezone]   = useState('')
+  const [saving, setSaving]               = useState(false)
 
   useEffect(() => {
     loadEventFromStorage(id)
@@ -98,6 +104,20 @@ export default function HostDashboard() {
     setCopiedResults(true)
     setResultsDropdown(false)
     setTimeout(() => setCopiedResults(false), 2000)
+  }
+
+  const openEdit = () => {
+    setEditDates([...(event.selectedDates || [])])
+    setEditSlots({ ...(event.timeSlots || {}) })
+    setEditTimezone(event.timezone || '')
+    setEditOpen(true)
+  }
+
+  const saveEdit = async () => {
+    setSaving(true)
+    await updateEventTiming(event.id, editDates, editSlots)
+    setSaving(false)
+    setEditOpen(false)
   }
 
   // bestBlockKey: for heatmap ring highlight — uses host blocks with numeric bi
@@ -177,6 +197,12 @@ export default function HostDashboard() {
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
               <span className="text-sm text-slate-500">Live</span>
             </div>
+            <button
+              onClick={openEdit}
+              className="px-4 py-2 rounded-xl text-sm font-semibold bg-gather-50 text-gather-700 hover:bg-gather-100 transition-all"
+            >
+              Edit schedule
+            </button>
             <button
               onClick={handleCopy}
               className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
@@ -599,6 +625,37 @@ export default function HostDashboard() {
         </div>
 
       </div>
+
+      {/* ── Edit schedule modal ── */}
+      {editOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm overflow-y-auto py-8 px-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl p-8 relative">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-ink">Edit schedule</h2>
+                <p className="text-sm text-slate-400 mt-0.5">Changes will update for all participants immediately.</p>
+              </div>
+              <button
+                onClick={() => setEditOpen(false)}
+                className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 transition-colors"
+              >✕</button>
+            </div>
+            <CalendarStep
+              selectedDates={editDates}
+              timeSlots={editSlots}
+              timezone={editTimezone}
+              onDatesChange={setEditDates}
+              onTimeSlotsChange={setEditSlots}
+              onTimezoneChange={setEditTimezone}
+              onNext={saveEdit}
+              onBack={() => setEditOpen(false)}
+            />
+            {saving && (
+              <p className="text-center text-sm text-slate-400 mt-2">Saving…</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

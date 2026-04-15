@@ -85,6 +85,22 @@ export function EventProvider({ children }) {
     return loaded
   }
 
+  // ── Update event timing (dates + time slots) ───────────────────────────
+  const updateEventTiming = async (eventId, selectedDates, timeSlots) => {
+    const { error } = await supabase
+      .from('events')
+      .update({ selected_dates: selectedDates, time_slots: timeSlots })
+      .eq('id', eventId)
+
+    if (error) {
+      console.error('Supabase updateEventTiming error:', error.message)
+      return false
+    }
+
+    setEvent(prev => ({ ...prev, selectedDates, timeSlots }))
+    return true
+  }
+
   // ── Add / update a participant ──────────────────────────────────────────
   const addParticipant = async (eventId, participant) => {
     const { error } = await supabase.from('participants').upsert({
@@ -111,7 +127,7 @@ export function EventProvider({ children }) {
   }
 
   return (
-    <EventContext.Provider value={{ event, updateEvent, saveEventToStorage, loadEventFromStorage, addParticipant }}>
+    <EventContext.Provider value={{ event, updateEvent, saveEventToStorage, loadEventFromStorage, addParticipant, updateEventTiming }}>
       {children}
     </EventContext.Provider>
   )
