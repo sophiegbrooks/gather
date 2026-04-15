@@ -68,6 +68,7 @@ export default function HostDashboard() {
   const navigate = useNavigate()
   const { event, loadEventFromStorage } = useEvent()
   const [copied, setCopied]             = useState(false)
+  const [copiedResults, setCopiedResults] = useState(false)
   const [authUser, setAuthUser]         = useState(undefined)
   const [selectedPId, setSelectedPId]   = useState(null)
 
@@ -82,12 +83,19 @@ export default function HostDashboard() {
   }, [])
 
   const inviteLink   = `${window.location.origin}/event/${id}`
+  const resultsLink  = `${window.location.origin}/event/${id}/dashboard`
   const participants = event.participants || []
 
   const handleCopy = () => {
     navigator.clipboard.writeText(inviteLink)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleCopyResults = () => {
+    navigator.clipboard.writeText(resultsLink)
+    setCopiedResults(true)
+    setTimeout(() => setCopiedResults(false), 2000)
   }
 
   // bestBlockKey: for heatmap ring highlight — uses host blocks with numeric bi
@@ -173,7 +181,15 @@ export default function HostDashboard() {
                 copied ? 'bg-gather-500 text-white' : 'bg-gather-50 text-gather-700 hover:bg-gather-100'
               }`}
             >
-              {copied ? '✓ Link copied!' : 'Share link'}
+              {copied ? '✓ Link copied!' : 'Share invite'}
+            </button>
+            <button
+              onClick={handleCopyResults}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                copiedResults ? 'bg-gather-500 text-white' : 'bg-gather-50 text-gather-700 hover:bg-gather-100'
+              }`}
+            >
+              {copiedResults ? '✓ Copied!' : 'Share results'}
             </button>
             {authUser ? (
               <button
