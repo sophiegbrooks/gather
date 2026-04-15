@@ -431,19 +431,25 @@ export default function HostDashboard() {
                                 const isHalf    = slot.endsWith(':30')
                                 const isQuarter = slot.endsWith(':15') || slot.endsWith(':45')
                                 return (
-                                  <div key={slot} className="h-8 flex flex-col justify-start items-end pr-1 pt-0.5">
+                                  <div key={slot} className="h-8 relative">
                                     {isHour && (
-                                      <span className="text-[10px] text-slate-500 whitespace-nowrap leading-none font-medium">
+                                      <span
+                                        className="absolute right-2 text-[10px] text-slate-500 whitespace-nowrap leading-none font-medium"
+                                        style={{ top: 0, transform: 'translateY(-50%)' }}
+                                      >
                                         {formatSlot(slot)}
                                       </span>
                                     )}
                                     {isHalf && (
-                                      <span className="text-[9px] text-slate-300 whitespace-nowrap leading-none">
+                                      <span
+                                        className="absolute right-2 text-[9px] text-slate-300 whitespace-nowrap leading-none"
+                                        style={{ top: 0, transform: 'translateY(-50%)' }}
+                                      >
                                         :30
                                       </span>
                                     )}
                                     {isQuarter && (
-                                      <div className="w-2 h-px bg-slate-200" />
+                                      <div className="absolute right-0 top-0 w-2 h-px bg-slate-200" />
                                     )}
                                   </div>
                                 )
