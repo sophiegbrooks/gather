@@ -287,8 +287,8 @@ export default function HostDashboard() {
             ))}
           </div>
 
-          {/* Invite friends */}
-          <div className="bg-gather-600 rounded-2xl p-5">
+          {/* Invite friends — hidden once someone responds */}
+          {participants.length === 0 && <div className="bg-gather-600 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h2 className="font-bold text-white text-base">Invite friends</h2>
@@ -330,7 +330,7 @@ export default function HostDashboard() {
                 {copied ? '✓ Copied!' : 'Copy link'}
               </button>
             </div>
-          </div>
+          </div>}
 
           {/* Availability heatmap */}
           <div className="bg-white rounded-2xl border border-slate-100 p-6">
