@@ -423,7 +423,7 @@ export default function HostDashboard() {
                       <div className="shrink-0 flex flex-col">
                         {/* Spacer matching date header height */}
                         <div className="mb-3 h-[52px]" />
-                        <div className="flex flex-col gap-px">
+                        <div className="flex flex-col gap-px w-14">
                           {axisBlocks.map((block, bi) => (
                             <div key={bi} className="flex flex-col gap-px">
                               {block.map((slot) => {
@@ -431,21 +431,19 @@ export default function HostDashboard() {
                                 const isHalf    = slot.endsWith(':30')
                                 const isQuarter = slot.endsWith(':15') || slot.endsWith(':45')
                                 return (
-                                  <div key={slot} className="h-8 relative pr-2">
-                                    {/* Horizontal rule at top of cell */}
-                                    {isHour    && <div className="absolute inset-x-0 top-0 h-px bg-slate-300" />}
-                                    {isHalf    && <div className="absolute inset-x-0 top-0 h-px bg-slate-200" />}
-                                    {isQuarter && <div className="absolute right-0 top-0 w-2 h-px bg-slate-100" />}
-                                    {/* Label pinned to top of cell, aligned with the line */}
+                                  <div key={slot} className="h-8 flex flex-col justify-start items-end pr-1 pt-0.5">
                                     {isHour && (
-                                      <span className="absolute top-0.5 right-2 text-[10px] text-slate-500 whitespace-nowrap leading-none font-medium">
+                                      <span className="text-[10px] text-slate-500 whitespace-nowrap leading-none font-medium">
                                         {formatSlot(slot)}
                                       </span>
                                     )}
                                     {isHalf && (
-                                      <span className="absolute top-0.5 right-2 text-[9px] text-slate-300 whitespace-nowrap leading-none">
+                                      <span className="text-[9px] text-slate-300 whitespace-nowrap leading-none">
                                         :30
                                       </span>
+                                    )}
+                                    {isQuarter && (
+                                      <div className="w-2 h-px bg-slate-200" />
                                     )}
                                   </div>
                                 )
