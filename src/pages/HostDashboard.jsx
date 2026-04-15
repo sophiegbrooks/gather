@@ -511,9 +511,9 @@ export default function HostDashboard() {
                                         title={tooltip}
                                       >
                                         {/* Grid lines at hour / half / quarter marks */}
-                                        {isHour    && <div className="absolute inset-x-0 top-0 h-px bg-slate-400/40 pointer-events-none" />}
-                                        {isHalf    && <div className="absolute inset-x-0 top-0 h-px bg-slate-300/40 pointer-events-none" />}
-                                        {isQuarter && <div className="absolute inset-x-0 top-0 h-px bg-slate-200/50 pointer-events-none" />}
+                                        {isHour    && <div className="absolute inset-x-0 top-0 h-0.5 bg-white/70 pointer-events-none" />}
+                                        {isHalf    && <div className="absolute inset-x-0 top-0 h-px bg-white/50 pointer-events-none" />}
+                                        {isQuarter && <div className="absolute inset-x-0 top-0 h-px bg-white/30 pointer-events-none" />}
                                         {overlayText && (
                                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <span className={`text-[10px] font-bold ${overlayText.light ? 'text-white' : 'text-slate-600'}`}>
