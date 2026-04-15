@@ -431,17 +431,21 @@ export default function HostDashboard() {
                                 const isHalf    = slot.endsWith(':30')
                                 const isQuarter = slot.endsWith(':15') || slot.endsWith(':45')
                                 return (
-                                  <div key={slot} className={`h-8 relative flex items-center justify-end pr-2 ${isHour ? 'border-t border-slate-200' : ''}`}>
+                                  <div key={slot} className="h-8 relative pr-2">
+                                    {/* Horizontal rule at top of cell */}
+                                    {isHour    && <div className="absolute inset-x-0 top-0 h-px bg-slate-300" />}
+                                    {isHalf    && <div className="absolute inset-x-0 top-0 h-px bg-slate-200" />}
+                                    {isQuarter && <div className="absolute right-0 top-0 w-2 h-px bg-slate-100" />}
+                                    {/* Label pinned to top of cell, aligned with the line */}
                                     {isHour && (
-                                      <span className="text-[10px] text-slate-400 whitespace-nowrap leading-none -mt-px">
+                                      <span className="absolute top-0.5 right-2 text-[10px] text-slate-500 whitespace-nowrap leading-none font-medium">
                                         {formatSlot(slot)}
                                       </span>
                                     )}
                                     {isHalf && (
-                                      <span className="text-[9px] text-slate-300 whitespace-nowrap leading-none -mt-px">:30</span>
-                                    )}
-                                    {isQuarter && (
-                                      <div className="absolute right-0 top-0 w-1.5 h-px bg-slate-200 mt-[1px]" />
+                                      <span className="absolute top-0.5 right-2 text-[9px] text-slate-300 whitespace-nowrap leading-none">
+                                        :30
+                                      </span>
                                     )}
                                   </div>
                                 )
@@ -477,8 +481,9 @@ export default function HostDashboard() {
                               return (
                                 <div key={bi} className={`flex flex-col gap-px ${isBestBlock ? 'ring-2 ring-green-500 ring-offset-1 rounded-sm' : ''}`}>
                                   {block.map(slot => {
-                                    const isHour = slot.endsWith(':00')
-                                    const isHalf = slot.endsWith(':30')
+                                    const isHour    = slot.endsWith(':00')
+                                    const isHalf    = slot.endsWith(':30')
+                                    const isQuarter = slot.endsWith(':15') || slot.endsWith(':45')
                                     const selectedP = selectedPId ? participants.find(p => p.id === selectedPId) : null
                                     let bg, tooltip, overlayText
                                     if (selectedP) {
@@ -501,10 +506,14 @@ export default function HostDashboard() {
                                     return (
                                       <div
                                         key={slot}
-                                        className={`h-8 w-full rounded-sm transition-all duration-200 cursor-default relative group ${isHour ? 'border-t-2 border-white/60' : isHalf ? 'border-t border-white/40' : ''}`}
+                                        className="h-8 w-full rounded-sm transition-all duration-200 cursor-default relative group"
                                         style={{ background: bg }}
                                         title={tooltip}
                                       >
+                                        {/* Grid lines at hour / half / quarter marks */}
+                                        {isHour    && <div className="absolute inset-x-0 top-0 h-px bg-slate-400/40 pointer-events-none" />}
+                                        {isHalf    && <div className="absolute inset-x-0 top-0 h-px bg-slate-300/40 pointer-events-none" />}
+                                        {isQuarter && <div className="absolute inset-x-0 top-0 h-px bg-slate-200/50 pointer-events-none" />}
                                         {overlayText && (
                                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                             <span className={`text-[10px] font-bold ${overlayText.light ? 'text-white' : 'text-slate-600'}`}>
