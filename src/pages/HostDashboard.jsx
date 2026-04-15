@@ -427,13 +427,21 @@ export default function HostDashboard() {
                           {axisBlocks.map((block, bi) => (
                             <div key={bi} className="flex flex-col gap-px">
                               {block.map((slot) => {
-                                const isHour = slot.endsWith(':00')
+                                const isHour    = slot.endsWith(':00')
+                                const isHalf    = slot.endsWith(':30')
+                                const isQuarter = slot.endsWith(':15') || slot.endsWith(':45')
                                 return (
-                                  <div key={slot} className={`h-8 flex items-center justify-end pr-2 ${isHour ? 'border-t border-slate-200' : ''}`}>
+                                  <div key={slot} className={`h-8 relative flex items-center justify-end pr-2 ${isHour ? 'border-t border-slate-200' : ''}`}>
                                     {isHour && (
                                       <span className="text-[10px] text-slate-400 whitespace-nowrap leading-none -mt-px">
                                         {formatSlot(slot)}
                                       </span>
+                                    )}
+                                    {isHalf && (
+                                      <span className="text-[9px] text-slate-300 whitespace-nowrap leading-none -mt-px">:30</span>
+                                    )}
+                                    {isQuarter && (
+                                      <div className="absolute right-0 top-0 w-1.5 h-px bg-slate-200 mt-[1px]" />
                                     )}
                                   </div>
                                 )
@@ -470,6 +478,7 @@ export default function HostDashboard() {
                                 <div key={bi} className={`flex flex-col gap-px ${isBestBlock ? 'ring-2 ring-green-500 ring-offset-1 rounded-sm' : ''}`}>
                                   {block.map(slot => {
                                     const isHour = slot.endsWith(':00')
+                                    const isHalf = slot.endsWith(':30')
                                     const selectedP = selectedPId ? participants.find(p => p.id === selectedPId) : null
                                     let bg, tooltip, overlayText
                                     if (selectedP) {
@@ -492,7 +501,7 @@ export default function HostDashboard() {
                                     return (
                                       <div
                                         key={slot}
-                                        className={`h-8 w-full rounded-sm transition-all duration-200 cursor-default relative group ${isHour ? 'border-t-2 border-white/60' : ''}`}
+                                        className={`h-8 w-full rounded-sm transition-all duration-200 cursor-default relative group ${isHour ? 'border-t-2 border-white/60' : isHalf ? 'border-t border-white/40' : ''}`}
                                         style={{ background: bg }}
                                         title={tooltip}
                                       >
