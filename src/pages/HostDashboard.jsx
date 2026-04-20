@@ -422,7 +422,7 @@ export default function HostDashboard() {
                     return (
                       <div className="shrink-0 flex flex-col">
                         {/* Spacer matching date header height */}
-                        <div className="mb-3 h-[52px]" />
+                        <div className="mb-3 h-[39px]" />
                         <div className="flex flex-col gap-px w-16">
                           {axisBlocks.map((block, bi) => (
                             <div key={bi} className="flex flex-col gap-px">
