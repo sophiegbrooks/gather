@@ -4,8 +4,11 @@ import { EventProvider } from './context/EventContext'
 import { supabase } from './lib/supabase'
 import Landing from './pages/Landing'
 import Create from './pages/Create'
+import CreateSignup from './pages/CreateSignup'
 import HostDashboard from './pages/HostDashboard'
 import ParticipantView from './pages/ParticipantView'
+import SignupView from './pages/SignupView'
+import SignupDashboard from './pages/SignupDashboard'
 import Profile from './pages/Profile'
 import Login from './pages/Login'
 
@@ -36,13 +39,16 @@ export default function App() {
     <BrowserRouter>
       <EventProvider>
         <Routes>
-          <Route path="/"                       element={<Landing />} />
-          <Route path="/create"                 element={<Create />} />
-          <Route path="/profile"                element={<Profile />} />
-          <Route path="/login"                  element={<Login />} />
-          <Route path="/auth/callback"          element={<AuthCallback />} />
-          <Route path="/event/:id/dashboard"    element={<HostDashboard />} />
-          <Route path="/event/:id"              element={<ParticipantView />} />
+          <Route path="/"                        element={<Landing />} />
+          <Route path="/create"                  element={<Create />} />
+          <Route path="/create/signup"           element={<CreateSignup />} />
+          <Route path="/profile"                 element={<Profile />} />
+          <Route path="/login"                   element={<Login />} />
+          <Route path="/auth/callback"           element={<AuthCallback />} />
+          <Route path="/event/:id/dashboard"     element={<HostDashboard />} />
+          <Route path="/event/:id"               element={<ParticipantView />} />
+          <Route path="/signup/:id/dashboard"    element={<SignupDashboard />} />
+          <Route path="/signup/:id"              element={<SignupView />} />
         </Routes>
       </EventProvider>
     </BrowserRouter>

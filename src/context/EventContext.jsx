@@ -11,6 +11,7 @@ export function EventProvider({ children }) {
     type: 'group',
     selectedDates: [],
     timeSlots: {},
+    slotDuration: null,   // minutes per slot; only set for type='signup'
     user: null,
     participants: [],
     inviteEmails: [],
@@ -34,7 +35,8 @@ export function EventProvider({ children }) {
       type:           final.type,
       selected_dates: final.selectedDates,
       time_slots:     final.timeSlots,
-      user_info:      final.user,
+      // slotDuration is stored inside user_info to avoid a schema change
+      user_info:      { ...(final.user || {}), _slotDuration: final.slotDuration || null },
       invite_emails:  final.inviteEmails,
       created_at:     final.createdAt,
       user_id:        user?.id || null,
@@ -62,6 +64,12 @@ export function EventProvider({ children }) {
       return null
     }
 
+    // Extract slotDuration from user_info (stored there to avoid schema change)
+    const rawUserInfo = data.user_info || {}
+    const slotDuration = rawUserInfo._slotDuration || null
+    const userInfo = { ...rawUserInfo }
+    delete userInfo._slotDuration
+
     const loaded = {
       id:            data.id,
       name:          data.name,
@@ -69,7 +77,8 @@ export function EventProvider({ children }) {
       type:          data.type,
       selectedDates: data.selected_dates || [],
       timeSlots:     data.time_slots     || {},
-      user:          data.user_info,
+      slotDuration,
+      user:          userInfo,
       inviteEmails:  data.invite_emails  || [],
       createdAt:     data.created_at,
       timezone:      data.timezone       || null,
@@ -126,8 +135,19 @@ export function EventProvider({ children }) {
     })
   }
 
+  // ── Add a sign-up (one slot claimed by one person) ────────────────────────
+  const addSignup = async (eventId, { name, email, date, slot }) => {
+    const id = `p_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`
+    return addParticipant(eventId, {
+      id,
+      name,
+      email: email || null,
+      availability: { [date]: [slot] },
+    })
+  }
+
   return (
-    <EventContext.Provider value={{ event, updateEvent, saveEventToStorage, loadEventFromStorage, addParticipant, updateEventTiming }}>
+    <EventContext.Provider value={{ event, updateEvent, saveEventToStorage, loadEventFromStorage, addParticipant, addSignup, updateEventTiming }}>
       {children}
     </EventContext.Provider>
   )

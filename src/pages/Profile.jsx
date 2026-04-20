@@ -129,7 +129,7 @@ export default function Profile() {
                 <div
                   key={evt.id}
                   className="bg-white rounded-2xl border border-slate-100 p-5 hover:border-gather-200 hover:shadow-md transition-all cursor-pointer group"
-                  onClick={() => navigate(`/event/${evt.id}/dashboard`)}
+                  onClick={() => navigate(evt.type === 'signup' ? `/signup/${evt.id}/dashboard` : `/event/${evt.id}/dashboard`)}
                 >
                   {/* Event name + topic */}
                   <div className="mb-4">
@@ -137,11 +137,15 @@ export default function Profile() {
                       <h3 className="font-bold text-ink text-base leading-tight group-hover:text-gather-700 transition-colors">
                         {evt.name}
                       </h3>
-                      {evt.topic && (
+                      {evt.type === 'signup' ? (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs font-medium rounded-full shrink-0">
+                          Sign-up
+                        </span>
+                      ) : evt.topic ? (
                         <span className="px-2 py-0.5 bg-gather-50 text-gather-600 text-xs font-medium rounded-full shrink-0">
                           {evt.topic}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     <p className="text-xs text-slate-400 mt-1">Created {created}</p>
                   </div>

@@ -25,6 +25,12 @@ export default function Landing() {
           >
             Schedule a meeting
           </button>
+          <button
+            onClick={() => navigate('/create/signup')}
+            className="text-sm font-medium text-slate-500 hover:text-gather-700 transition-colors"
+          >
+            Create sign-up
+          </button>
           {user ? (
             <button
               onClick={() => navigate('/profile')}
@@ -63,20 +69,29 @@ export default function Landing() {
             your group tell you when they're free.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          {/* Two CTAs */}
+          <div className="flex flex-col sm:flex-row items-stretch justify-center gap-4 max-w-xl mx-auto">
             <button
               onClick={() => navigate('/create')}
-              className="px-8 py-4 bg-gather-600 text-white text-lg font-semibold rounded-2xl hover:bg-gather-700 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-gather-200"
+              className="flex-1 px-8 py-5 bg-gather-600 text-white text-base font-semibold rounded-2xl hover:bg-gather-700 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-gather-200 flex flex-col items-center gap-1"
             >
-              Schedule a meeting →
+              <span className="text-lg">📅 Schedule a meeting</span>
+              <span className="text-gather-200 text-xs font-normal">Find the best time for everyone</span>
             </button>
-            <span className="text-sm text-slate-400">No account needed</span>
+            <button
+              onClick={() => navigate('/create/signup')}
+              className="flex-1 px-8 py-5 bg-white text-ink text-base font-semibold rounded-2xl hover:bg-gather-50 border-2 border-slate-200 hover:border-gather-300 transition-all hover:scale-[1.02] active:scale-[0.98] flex flex-col items-center gap-1"
+            >
+              <span className="text-lg">📋 Create a sign-up</span>
+              <span className="text-slate-400 text-xs font-normal">Let people claim time slots</span>
+            </button>
           </div>
+          <p className="text-sm text-slate-400 mt-4">No account needed</p>
         </div>
 
         {/* Feature pills */}
         <div className="flex flex-wrap items-center justify-center gap-3 mt-20 animate-fade-in">
-          {['Hover-select dates', 'Custom time windows', 'Live availability', 'Shareable link', 'Guest-friendly'].map(f => (
+          {['Hover-select dates', 'Sign-up sheets', 'Live availability', 'Shareable link', 'Guest-friendly'].map(f => (
             <span key={f} className="px-4 py-2 bg-slate-50 border border-slate-100 text-slate-500 text-sm rounded-full">
               {f}
             </span>
