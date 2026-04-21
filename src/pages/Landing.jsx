@@ -55,7 +55,7 @@ export default function Landing() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-gather-50 text-gather-700 text-sm font-medium px-4 py-1.5 rounded-full mb-8 border border-gather-100">
             <span className="w-2 h-2 rounded-full bg-gather-500 animate-pulse" />
-            Group scheduling, simplified
+            Group coordination, simplified
           </div>
 
           {/* Headline */}
