@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEvent } from '../context/EventContext'
+import { parseIcs, getBusySlotsForDate } from '../lib/parseIcs'
 
 const ALL_SLOTS = (() => {
   const slots = []
@@ -242,7 +243,7 @@ function getBlocks(slots) {
   return blocks
 }
 
-function TimePanel({ date, slots, hostSlots, onChange, onClose, hostTz, viewTz }) {
+function TimePanel({ date, slots, hostSlots, busySlots = new Set(), onChange, onClose, hostTz, viewTz }) {
   // Convert a slot label from hostTz to viewTz for display
   const displaySlot = (slot) => {
     if (!hostTz || !viewTz || hostTz === viewTz) return formatSlot(slot)
@@ -418,6 +419,18 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose, hostTz, viewTz }
               </div>
             </div>
           </div>
+          {/* Conflict warning */}
+          {currentPickerValid && busySlots.size > 0 && (() => {
+            const conflicts = slotsInRange(rangeStart, rangeEnd, AVAILABLE).filter(s => busySlots.has(s))
+            if (!conflicts.length) return null
+            return (
+              <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                <span className="shrink-0 mt-0.5">⚠️</span>
+                <span>This range overlaps with {conflicts.length} busy slot{conflicts.length !== 1 ? 's' : ''} from your calendar.</span>
+              </div>
+            )
+          })()}
+
           <button
             onClick={() => {
               addRange()
@@ -494,6 +507,7 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose, hostTz, viewTz }
           >
             {AVAILABLE.map((slot, idx) => {
               const selected   = pending.has(slot)
+              const isBusy     = busySlots.has(slot)
               const isHov      = hoverIdx === idx && !dragging.current
               const min        = parseInt(slot.split(':')[1])
               const isHourMark = min === 0
@@ -502,12 +516,29 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose, hostTz, viewTz }
               const nextSel = idx < AVAILABLE.length - 1 && pending.has(AVAILABLE[idx + 1])
               const isTop   = selected && !prevSel
               const isBot   = selected && !nextSel
+
+              let barBg, barStyle = {}
+              if (selected && isBusy) {
+                barBg = 'bg-gather-400'
+                barStyle = { backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.12) 4px, rgba(0,0,0,0.12) 8px)' }
+              } else if (selected) {
+                barBg = 'bg-gather-400'
+              } else if (isBusy) {
+                barBg = ''
+                barStyle = { background: 'repeating-linear-gradient(45deg, #fef2f2, #fef2f2 4px, #fecaca 4px, #fecaca 8px)' }
+              } else if (isHov) {
+                barBg = 'bg-gather-100'
+              } else {
+                barBg = 'bg-slate-50'
+              }
+
               return (
                 <div
                   key={slot}
                   onMouseDown={() => handleMouseDown(idx)}
                   onMouseEnter={() => handleMouseEnter(idx)}
                   style={{ height: `${SLOT_H}px` }}
+                  title={isBusy ? 'Busy in your calendar' : undefined}
                   className={`flex items-center cursor-pointer ${isHourMark ? 'border-t border-slate-100' : ''}`}
                 >
                   <div className="w-14 shrink-0 flex items-center justify-end pr-2 pointer-events-none">
@@ -521,11 +552,12 @@ function TimePanel({ date, slots, hostSlots, onChange, onClose, hostTz, viewTz }
                     )}
                   </div>
                   <div
+                    style={barStyle}
                     className={`
                       flex-1 h-full mr-2 transition-colors duration-75
                       ${isTop ? 'rounded-t-md' : ''}
                       ${isBot ? 'rounded-b-md' : ''}
-                      ${selected ? 'bg-gather-400' : isHov ? 'bg-gather-100' : 'bg-slate-50'}
+                      ${barBg}
                     `}
                   />
                 </div>
@@ -553,12 +585,28 @@ export default function ParticipantView() {
   const navigate = useNavigate()
   const { event, loadEventFromStorage, addParticipant } = useEvent()
 
-  const [name, setName]             = useState('')
-  const [nameSubmitted, setSubmit]  = useState(false)
-  const [availability, setAvail]    = useState({})
-  const [activeDate, setActiveDate] = useState(null)
-  const [submitted, setSubmitted]   = useState(false)
-  const [viewTz, setViewTz]         = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
+  const [name, setName]                 = useState('')
+  const [nameSubmitted, setSubmit]      = useState(false)
+  const [availability, setAvail]        = useState({})
+  const [activeDate, setActiveDate]     = useState(null)
+  const [submitted, setSubmitted]       = useState(false)
+  const [viewTz, setViewTz]             = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
+  const [calendarEvents, setCalEvents]  = useState([])
+  const [icsFileName, setIcsFileName]   = useState(null)
+  const icsInputRef                     = useRef(null)
+
+  const handleIcsUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const events = parseIcs(ev.target.result)
+      setCalEvents(events)
+      setIcsFileName(file.name)
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
 
   useEffect(() => {
     loadEventFromStorage(id)
@@ -824,8 +872,31 @@ export default function ParticipantView() {
                 <h2 className="text-2xl font-bold text-ink">Hi {name}! When are you free?</h2>
                 <p className="text-slate-400 text-sm mt-1">Click any proposed date to mark your availability.</p>
 
+                {/* Calendar import */}
+                <div className="mt-3 flex items-center gap-2">
+                  <input ref={icsInputRef} type="file" accept=".ics" className="hidden" onChange={handleIcsUpload} />
+                  {icsFileName ? (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-gather-50 border border-gather-200 rounded-lg text-xs text-gather-700 font-medium">
+                      <span>📅</span>
+                      <span className="truncate max-w-[160px]">{icsFileName}</span>
+                      <button
+                        onClick={() => { setCalEvents([]); setIcsFileName(null) }}
+                        className="text-slate-400 hover:text-red-400 font-bold ml-1 transition-colors"
+                      >×</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => icsInputRef.current?.click()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-500 hover:border-gather-300 hover:text-gather-600 transition-colors bg-white"
+                    >
+                      📅 Import calendar (.ics)
+                    </button>
+                  )}
+                  <span className="text-[10px] text-slate-400">Overlay your schedule to see conflicts</span>
+                </div>
+
                 {/* Timezone sync row */}
-                <div className="flex flex-wrap items-center gap-2 mt-3 p-3 bg-white border border-slate-100 rounded-xl">
+                <div className="flex flex-wrap items-center gap-2 mt-2 p-3 bg-white border border-slate-100 rounded-xl">
                   {event.timezone && event.timezone !== viewTz && (
                     <span className="text-xs text-slate-500">
                       Host: <span className="font-medium">{event.timezone}</span>
@@ -853,8 +924,10 @@ export default function ParticipantView() {
                 {event.selectedDates?.map(date => {
                   const obj = parseKey(date)
                   const label = obj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-                  const mySlots = availability[date] || []
+                  const mySlots   = availability[date] || []
                   const hostSlots = event.timeSlots?.[date] || []
+                  const busyForDate = calendarEvents.length ? getBusySlotsForDate(calendarEvents, date) : new Set()
+                  const busyCount = hostSlots.filter(s => busyForDate.has(s)).length
                   return (
                     <button
                       key={date}
@@ -868,16 +941,22 @@ export default function ParticipantView() {
                       }`}
                     >
                       <div className="font-semibold text-ink text-sm">{label}</div>
-                      <div className="text-xs text-slate-400 mt-1">
-                        Click to mark your availability
+                      <div className="text-xs text-slate-400 mt-1">Click to mark your availability</div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {mySlots.length > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gather-100 text-gather-700 text-xs font-semibold rounded-full">
+                            ✓ {mySlots.length} selected
+                          </span>
+                        )}
+                        {busyCount > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-600 text-xs font-semibold rounded-full border border-amber-200">
+                            ⚠ {busyCount} busy
+                          </span>
+                        )}
+                        {mySlots.length === 0 && busyCount === 0 && (
+                          <span className="text-xs text-slate-400">Click to select times</span>
+                        )}
                       </div>
-                      {mySlots.length > 0 ? (
-                        <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-gather-100 text-gather-700 text-xs font-semibold rounded-full">
-                          ✓ {mySlots.length} times selected
-                        </div>
-                      ) : (
-                        <div className="mt-2 text-xs text-slate-400">Click to select times</div>
-                      )}
                     </button>
                   )
                 })}
@@ -907,6 +986,7 @@ export default function ParticipantView() {
                   date={activeDate}
                   slots={availability[activeDate] || []}
                   hostSlots={event.timeSlots?.[activeDate] || []}
+                  busySlots={calendarEvents.length ? getBusySlotsForDate(calendarEvents, activeDate) : new Set()}
                   onChange={handleTimeChange}
                   onClose={() => setActiveDate(null)}
                   hostTz={event.timezone}
