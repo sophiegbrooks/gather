@@ -119,7 +119,7 @@ function TimeInput({ value, onChange, placeholder, filterAfter }) {
     // Show slots around typed value
     return formatSlot(s).toLowerCase().includes(text.toLowerCase()) ||
       (parsed && s >= parsed)
-  }).slice(0, 12)
+  })
 
   const commit = (raw) => {
     const slot = parseTypedTime(raw)
