@@ -443,8 +443,8 @@ export default function HostDashboard() {
                                       </span>
                                     )}
                                     {isHalf && (
-                                      <span className="absolute right-1 text-[9px] text-slate-300 whitespace-nowrap leading-none" style={{ top: 0, transform: 'translateY(-100%)' }}>
-                                        :30
+                                      <span className="absolute right-1 text-[9px] text-slate-400 whitespace-nowrap leading-none" style={{ top: 0, transform: 'translateY(-100%)' }}>
+                                        {formatSlot(slot)}
                                       </span>
                                     )}
                                   </div>
