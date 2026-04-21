@@ -65,7 +65,7 @@ export default function Landing() {
           </h1>
 
           <p className="text-xl text-slate-500 leading-relaxed mb-10 max-w-xl mx-auto">
-            No back-and-forth. No sign-up required. Just share a link and let
+            No back-and-forth. Just share a link and let
             your group tell you when they're free.
           </p>
 
