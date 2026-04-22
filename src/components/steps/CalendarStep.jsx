@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { parseIcs, getBusySlotsForDate } from '../../lib/parseIcs'
 
 const DAYS   = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -176,7 +177,7 @@ function slotsInRange(start, end) {
   return ALL_SLOTS.slice(startIdx, endIdx)
 }
 
-function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay, onNextDay }) {
+function TimePanel({ date, slots, busySlots = new Set(), onChange, onClose, hasPrev, hasNext, onPrevDay, onNextDay }) {
   const [mode, setMode]                 = useState('range')
   const [pendingSlots, setPendingSlots] = useState(new Set(slots))
   const [hoverIdx, setHoverIdx]         = useState(null)
@@ -371,6 +372,18 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
               </div>
             </div>
           </div>
+          {/* Conflict warning */}
+          {currentPickerValid && busySlots.size > 0 && (() => {
+            const conflicts = slotsInRange(rangeStart, rangeEnd).filter(s => busySlots.has(s))
+            if (!conflicts.length) return null
+            return (
+              <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                <span className="shrink-0 mt-0.5">⚠️</span>
+                <span>This range overlaps with {conflicts.length} busy slot{conflicts.length !== 1 ? 's' : ''} from your calendar.</span>
+              </div>
+            )
+          })()}
+
           <button
             onClick={() => {
               addRange()
@@ -429,16 +442,30 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
           >
         {ALL_SLOTS.map((slot, idx) => {
           const selected   = pendingSlots.has(slot)
+          const isBusy     = busySlots.has(slot)
           const isHov      = hoverIdx === idx && !dragging.current
           const min        = parseInt(slot.split(':')[1])
           const isHourMark = min === 0
           const isHalfMark = min === 30
 
-          // Range-edge rounding
           const prevSel = idx > 0                  && pendingSlots.has(ALL_SLOTS[idx - 1])
           const nextSel = idx < ALL_SLOTS.length-1 && pendingSlots.has(ALL_SLOTS[idx + 1])
           const isTop   = selected && !prevSel
           const isBot   = selected && !nextSel
+
+          let barBg = '', barStyle = {}
+          if (selected && isBusy) {
+            barBg = 'bg-gather-400'
+            barStyle = { backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.12) 4px, rgba(0,0,0,0.12) 8px)' }
+          } else if (selected) {
+            barBg = 'bg-gather-400'
+          } else if (isBusy) {
+            barStyle = { background: 'repeating-linear-gradient(45deg, #fef2f2, #fef2f2 4px, #fecaca 4px, #fecaca 8px)' }
+          } else if (isHov) {
+            barBg = 'bg-gather-100'
+          } else {
+            barBg = 'bg-slate-50'
+          }
 
           return (
             <div
@@ -446,9 +473,9 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
               onMouseDown={() => handleMouseDown(idx)}
               onMouseEnter={() => handleMouseEnter(idx)}
               style={{ height: `${SLOT_H}px` }}
+              title={isBusy ? 'Busy in your calendar' : undefined}
               className={`flex items-center cursor-pointer ${isHourMark ? 'border-t border-slate-100' : ''}`}
             >
-              {/* Time label column */}
               <div className="w-14 shrink-0 flex items-center justify-end pr-2 pointer-events-none">
                 {isHourMark && (
                   <span className="text-[10px] text-slate-400 font-medium leading-none -mt-[1px]">
@@ -459,14 +486,13 @@ function TimePanel({ date, slots, onChange, onClose, hasPrev, hasNext, onPrevDay
                   <span className="text-[9px] text-slate-300 leading-none">:30</span>
                 )}
               </div>
-
-              {/* Selection bar */}
               <div
+                style={barStyle}
                 className={`
                   flex-1 h-full mr-2 transition-colors duration-75
                   ${isTop ? 'rounded-t-md' : ''}
                   ${isBot ? 'rounded-b-md' : ''}
-                  ${selected ? 'bg-gather-400' : isHov ? 'bg-gather-100' : 'bg-slate-50'}
+                  ${barBg}
                 `}
               />
             </div>
@@ -539,6 +565,21 @@ export default function CalendarStep({ selectedDates, timeSlots, timezone, onDat
   const [activeDay, setActiveDay]   = useState(null)
   const [selecting, setSelecting]   = useState(false)
   const [selectMode, setSelectMode] = useState('add')
+  const [calendarEvents, setCalEvents] = useState([])
+  const [icsFileName, setIcsFileName]  = useState(null)
+  const icsInputRef = useRef(null)
+
+  const handleIcsUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      setCalEvents(parseIcs(ev.target.result))
+      setIcsFileName(file.name)
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
 
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
@@ -608,6 +649,29 @@ export default function CalendarStep({ selectedDates, timeSlots, timezone, onDat
           When might you meet?
         </h2>
         <p className="text-slate-400 text-sm mb-4">Select your dates, then click a date to view and confirm time slots.</p>
+
+        {/* Calendar import */}
+        <div className="flex items-center gap-2 mb-3">
+          <input ref={icsInputRef} type="file" accept=".ics" className="hidden" onChange={handleIcsUpload} />
+          {icsFileName ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-gather-50 border border-gather-200 rounded-lg text-xs text-gather-700 font-medium">
+              <span>📅</span>
+              <span className="truncate max-w-[180px]">{icsFileName}</span>
+              <button
+                onClick={() => { setCalEvents([]); setIcsFileName(null) }}
+                className="text-slate-400 hover:text-red-400 font-bold ml-1 transition-colors"
+              >×</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => icsInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-500 hover:border-gather-300 hover:text-gather-600 transition-colors bg-white"
+            >
+              📅 Import calendar (.ics)
+            </button>
+          )}
+          <span className="text-[10px] text-slate-400">Overlay your schedule to see conflicts</span>
+        </div>
 
         {/* Timezone selector */}
         <div className="flex items-center gap-2 mb-6">
@@ -733,6 +797,7 @@ export default function CalendarStep({ selectedDates, timeSlots, timezone, onDat
             <TimePanel
               date={activeDay}
               slots={timeSlots[activeDay] || []}
+              busySlots={calendarEvents.length ? getBusySlotsForDate(calendarEvents, activeDay) : new Set()}
               onChange={(date, slots) => onTimeSlotsChange({ ...timeSlots, [date]: slots })}
               onClose={() => setActiveDay(null)}
               hasPrev={hasPrev}
